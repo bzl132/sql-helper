@@ -1,0 +1,10 @@
+UPDATE Sql1 SET price = '8000', name = '张三' WHERE id = '1';
+UPDATE Sql1 SET name = '李四', price = '12000' WHERE id = '2';
+UPDATE Sql1 SET name = '王五', price = '9500' WHERE id = '3';
+UPDATE Sql1 SET name = '赵六', price = '15000' WHERE id = '4';
+UPDATE Sql1 SET price = '10000', name = '钱七' WHERE id = '5';
+UPDATE Sql1 SET name = '孙八', price = '11000' WHERE id = '6';
+UPDATE Sql1 SET name = '周九', price = '8500' WHERE id = '7';
+UPDATE Sql1 SET price = '13000', name = '吴十' WHERE id = '8';
+UPDATE Sql1 SET name = '郑十一', price = '9000' WHERE id = '9';
+UPDATE Sql1 SET price = '14000', name = '王十二' WHERE id = '10';
