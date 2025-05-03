@@ -1,0 +1,10 @@
+db.Java1.updateOne({ id: "1" }, { $set: { "isC": "男", "name": "张三" } });
+db.Java1.updateOne({ id: "2" }, { $set: { "name": "李四", "isC": "女" } });
+db.Java1.updateOne({ id: "3" }, { $set: { "name": "王五", "isC": "男" } });
+db.Java1.updateOne({ id: "4" }, { $set: { "name": "赵六", "isC": "女" } });
+db.Java1.updateOne({ id: "5" }, { $set: { "isC": "男", "name": "钱七" } });
+db.Java1.updateOne({ id: "6" }, { $set: { "isC": "女", "name": "孙八" } });
+db.Java1.updateOne({ id: "7" }, { $set: { "isC": "男", "name": "周九" } });
+db.Java1.updateOne({ id: "8" }, { $set: { "isC": "女", "name": "吴十" } });
+db.Java1.updateOne({ id: "9" }, { $set: { "isC": "男", "name": "郑十一" } });
+db.Java1.updateOne({ id: "10" }, { $set: { "isC": "女", "name": "王十二" } });

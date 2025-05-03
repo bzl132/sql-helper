@@ -1,0 +1,18 @@
+{
+  "Java-1": {
+    "type": "java",
+    "fields": [
+      "name",
+      "id",
+      "isC"
+    ]
+  },
+  "M-test1": {
+    "type": "mybatis",
+    "fields": [
+      "id",
+      "name",
+      "price"
+    ]
+  }
+}
