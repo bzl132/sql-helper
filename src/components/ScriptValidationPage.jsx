@@ -9,10 +9,12 @@ import {
     Table,
     Tag
 } from 'antd';
-import { UploadOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { UploadOutlined, CheckCircleOutlined, EditOutlined } from '@ant-design/icons';
 import MonacoEditor from 'react-monaco-editor';
+import RulesManager from './RulesManager'; // 导入新的规则管理组件
+import './ScriptValidationPage.css';
 
-const { Title, Text } = Typography;
+const { Title } = Typography;
 const { Option } = Select;
 
 function ScriptValidationPage() {
@@ -22,14 +24,23 @@ function ScriptValidationPage() {
     const [config, setConfig] = useState({});
     const [isValidating, setIsValidating] = useState(false);
 
+    // 规则管理相关状态
+    const [showRulesManager, setShowRulesManager] = useState(false);
+    const [validationRules, setValidationRules] = useState({
+        MySQL: {},
+        MongoDB: {}
+    });
+
+
     // 加载配置
     useEffect(() => {
         loadConfig();
-
+        loadValidationRules();
         // 监听标签页切换事件
         const handleTabChange = (event) => {
             if (event.detail.tab === 'validation') {
                 loadConfig();
+                loadValidationRules();
             }
         };
 
@@ -40,17 +51,33 @@ function ScriptValidationPage() {
         };
     }, []);
 
+    const loadValidationRules = () => {
+        // 从 localStorage 加载验证规则
+        const savedRules = localStorage.getItem('validationRules');
+        if (savedRules) {
+            setValidationRules(JSON.parse(savedRules));
+        }
+    };
+
+
+    // 处理规则保存
+    const handleRulesSave = (updatedRules) => {
+        setValidationRules(updatedRules);
+        localStorage.setItem('validationRules', JSON.stringify(updatedRules));
+        message.success('规则保存成功');
+    };
+
+
+
+
+
+
     const loadConfig = () => {
         // 从 localStorage 加载配置
         const savedConfig = localStorage.getItem('dbConfig');
         if (savedConfig) {
             setConfig(JSON.parse(savedConfig));
         }
-    };
-
-    // 处理脚本内容变化
-    const handleScriptChange = (e) => {
-        setScriptContent(e.target.value);
     };
 
     // 处理脚本类型变化
@@ -460,90 +487,33 @@ function ScriptValidationPage() {
     const checkValueType = (value, expectedType, dbType) => {
         console.log("checkValueType", value, expectedType, dbType);
 
-        // 移除值两端的引号
-        let cleanValue = value;
-        if ((value.startsWith('"') && value.endsWith('"')) ||
-            (value.startsWith("'") && value.endsWith("'"))) {
-            cleanValue = value.substring(1, value.length - 1);
-        }
-
-        if (dbType === 'MySQL') {
-            // MySQL 类型检查
-            if (expectedType.toLowerCase().includes('int') ||
-                expectedType.toLowerCase() === 'bigint' ||
-                expectedType.toLowerCase() === 'tinyint') {
-                // 整数类型
-                if (value.startsWith("'") || value.startsWith('"')) {
-                    return `应为整数类型，但提供了字符串: ${value}`;
-                }
-                if (!/^-?\d+$/.test(cleanValue)) {
-                    return `应为整数类型，但提供了非整数值: ${value}`;
-                }
-            } else if (expectedType.toLowerCase().includes('decimal') ||
-                expectedType.toLowerCase().includes('double') ||
-                expectedType.toLowerCase().includes('float')) {
-                // 浮点数类型
-                if (value.startsWith("'") || value.startsWith('"')) {
-                    return `应为数值类型，但提供了字符串: ${value}`;
-                }
-                if (!/^-?\d+(\.\d+)?$/.test(cleanValue)) {
-                    return `应为数值类型，但提供了非数值: ${value}`;
-                }
-            } else if (expectedType.toLowerCase().includes('date') ||
-                expectedType.toLowerCase().includes('time')) {
-                // 日期时间类型
-                if (!value.startsWith("'") && !value.startsWith('"')) {
-                    return `日期/时间类型应使用引号: ${value}`;
-                }
-            } else if (expectedType.toLowerCase().includes('char') ||
-                expectedType.toLowerCase().includes('text') ||
-                expectedType.toLowerCase() === 'string') {
-                // 字符串类型
-                if (!value.startsWith("'") && !value.startsWith('"') && value.toLowerCase() !== 'null') {
-                    return `字符串类型应使用引号: ${value}`;
+        try {
+            // 获取对应数据库类型和字段类型的规则
+            const typeRules = validationRules[dbType]?.[expectedType] || [];
+            
+            // 如果没有规则，返回 null
+            if (typeRules.length === 0) {
+                return null;
+            }
+            
+            // 检查每条规则
+            for (const rule of typeRules) {
+                try {
+                    const pattern = new RegExp(rule.pattern);
+                    if (!pattern.test(value)) {
+                        return rule.message;
+                    }
+                } catch (error) {
+                    console.error(`规则 ${rule.name} 的正则表达式无效:`, error);
                 }
             }
-        } else if (dbType === 'MongoDB') {
-            // MongoDB 类型检查
-            if (expectedType.toLowerCase() === 'string') {
-                // 字符串类型 - 修复：确保值使用了引号
-                if (!value.startsWith('"') && !value.startsWith("'") && value.toLowerCase() !== 'null') {
-                    return `字符串类型应使用引号: ${value}`;
-                }
-            } else if (expectedType.toLowerCase() === 'number' ||
-                expectedType.toLowerCase() === 'int' ||
-                expectedType.toLowerCase() === 'long' ||
-                expectedType.toLowerCase() === 'double') {
-                // 数值类型
-                if (value.startsWith('"') || value.startsWith("'")) {
-                    return `应为数值类型，但提供了字符串: ${value}`;
-                }
-                if (!/^-?\d+(\.\d+)?$/.test(cleanValue)) {
-                    return `应为数值类型，但提供了非数值: ${value}`;
-                }
-            } else if (expectedType.toLowerCase() === 'boolean') {
-                // 布尔类型
-                if (value.startsWith('"') || value.startsWith("'")) {
-                    return `应为布尔类型，但提供了字符串: ${value}`;
-                }
-                if (cleanValue !== 'true' && cleanValue !== 'false') {
-                    return `应为布尔类型(true/false)，但提供了: ${value}`;
-                }
-            } else if (expectedType.toLowerCase() === 'date') {
-                // 日期类型
-                if (!value.includes('new Date') && !value.startsWith('"') && !value.startsWith("'")) {
-                    return `日期类型应使用new Date()或日期字符串: ${value}`;
-                }
-            } else if (expectedType.toLowerCase() === 'objectid') {
-                // ObjectId类型
-                if (!value.includes('ObjectId') && !value.startsWith('"') && !value.startsWith("'")) {
-                    return `ObjectId类型应使用ObjectId()或字符串: ${value}`;
-                }
-            }
+            
+            return null;
+        } catch (error) {
+            console.error('检查值类型时出错:', error);
+            return null;
         }
 
-        // 对于未明确处理的类型，不进行特殊验证
-        return null;
     };
 
     // 提取表名
@@ -589,183 +559,6 @@ function ScriptValidationPage() {
         }
 
         return '';
-    };
-
-
-    // Monaco编辑器配置
-    const editorOptions = {
-        selectOnLineNumbers: true,
-        roundedSelection: false,
-        readOnly: false,
-        cursorStyle: 'line',
-        automaticLayout: true,
-        minimap: { enabled: true },
-        scrollBeyondLastLine: false,
-        lineNumbers: 'on',
-        folding: true,
-        fontSize: 14,
-        fontFamily: 'Consolas, "Courier New", monospace',
-        // 增加高度以显示所有内容
-        fixedOverflowWidgets: true,
-        // 设置编辑器主题
-        theme: 'vs',
-        // 增加行高
-        lineHeight: 20,
-    };
-
-    // 根据脚本类型设置编辑器语言
-    const getEditorLanguage = () => {
-        return scriptType === 'MySQL' ? 'sql' : 'javascript';
-    };
-
-    // 处理编辑器内容变化
-    const handleEditorChange = (value) => {
-        setScriptContent(value);
-    };
-
-    // 编辑器初始化配置
-    const editorDidMount = (editor, monaco) => {
-        // 设置自定义主题，使关键字变蓝色
-        monaco.editor.defineTheme('sqlCustomTheme', {
-            base: 'vs',
-            inherit: true,
-            rules: [
-                { token: 'keyword', foreground: '0000FF', fontStyle: 'bold' },
-                { token: 'keyword.sql', foreground: '0000FF', fontStyle: 'bold' }, // 添加特定于SQL的关键字规则
-                { token: 'keyword.js', foreground: '0000FF', fontStyle: 'bold' },  // 添加特定于JS的关键字规则
-                { token: 'operator', foreground: '000000' },
-                { token: 'string', foreground: 'A31515' },
-                { token: 'number', foreground: '098658' },
-                { token: 'comment', foreground: '008000' },
-                { token: 'identifier', foreground: '001080' },
-            ],
-            colors: {
-                'editor.foreground': '#000000',
-                'editor.background': '#FFFFFF',
-                'editor.selectionBackground': '#ADD6FF',
-                'editor.lineHighlightBackground': '#F0F0F0',
-                'editorCursor.foreground': '#000000',
-                'editorWhitespace.foreground': '#BFBFBF'
-            }
-        });
-
-        // 应用自定义主题
-        monaco.editor.setTheme('sqlCustomTheme');
-
-        // 注册SQL语法高亮规则
-        if (scriptType === 'MySQL') {
-            monaco.languages.setMonarchTokensProvider('sql', {
-                defaultToken: '',
-                tokenPostfix: '.sql',
-                ignoreCase: true,
-                brackets: [
-                    { open: '[', close: ']', token: 'delimiter.square' },
-                    { open: '(', close: ')', token: 'delimiter.parenthesis' }
-                ],
-                keywords: [
-                    'SELECT', 'FROM', 'WHERE', 'INSERT', 'UPDATE', 'DELETE',
-                    'CREATE', 'ALTER', 'DROP', 'TABLE', 'INTO', 'VALUES',
-                    'AND', 'OR', 'NOT', 'NULL', 'SET', 'JOIN', 'LEFT', 'RIGHT',
-                    'INNER', 'OUTER', 'GROUP', 'BY', 'ORDER', 'HAVING', 'AS',
-                    'ON', 'DISTINCT', 'COUNT', 'SUM', 'AVG', 'MIN', 'MAX',
-                    'BETWEEN', 'LIKE', 'IN', 'EXISTS', 'ALL', 'ANY', 'SOME'
-                ],
-                operators: [
-                    '=', '>', '<', '!', '~', '?', ':', '==', '<=', '>=', '!=',
-                    '&&', '||', '++', '--', '+', '-', '*', '/', '&', '|', '^', '%'
-                ],
-                // 符号定义
-                symbols: /[=><!~?:&|+\-*\/\^%]+/,
-                // 转义字符
-                escapes: /\\(?:[abfnrtv\\"']|x[0-9A-Fa-f]{1,4}|u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8})/,
-                // 字符串
-                string: /("|')(\\(?:\r\n|[\s\S])|(?!\1)[^\\\r\n])*\1/,
-                // 数字
-                number: /\b\d+(\.\d+)?\b/,
-                // 标识符
-                identifier: /[a-zA-Z_][\w$]*/,
-                // 标点符号
-                punctuation: /[;,.]/,
-                // 令牌规则
-                tokenizer: {
-                    root: [
-                        { include: '@comments' },
-                        { include: '@whitespace' },
-                        { include: '@numbers' },
-                        { include: '@strings' },
-                        [/[,;]/, 'delimiter'],
-                        [/[()]/, '@brackets'],
-                        [/@symbols/, {
-                            cases: {
-                                '@operators': 'operator',
-                                '@default': ''
-                            }
-                        }],
-                        [/@identifier/, {
-                            cases: {
-                                '@keywords': { token: 'keyword.sql' }, // 明确指定为keyword.sql
-                                '@default': 'identifier'
-                            }
-                        }]
-                    ],
-                    whitespace: [
-                        [/\s+/, 'white']
-                    ],
-                    comments: [
-                        [/--+.*/, 'comment'],
-                        [/\/\*/, { token: 'comment.quote', next: '@comment' }]
-                    ],
-                    comment: [
-                        [/[^*/]+/, 'comment'],
-                        [/\*\//, { token: 'comment.quote', next: '@pop' }],
-                        [/./, 'comment']
-                    ],
-                    numbers: [
-                        [/\d+/, 'number'],
-                        [/\d+\.\d+/, 'number.float']
-                    ],
-                    strings: [
-                        [/'/, { token: 'string', next: '@string' }],
-                        [/"/, { token: 'string.double', next: '@stringDouble' }]
-                    ],
-                    string: [
-                        [/[^']+/, 'string'],
-                        [/''/, 'string'],
-                        [/'/, { token: 'string', next: '@pop' }]
-                    ],
-                    stringDouble: [
-                        [/[^"]+/, 'string.double'],
-                        [/""/, 'string.double'],
-                        [/"/, { token: 'string.double', next: '@pop' }]
-                    ]
-                }
-            });
-        }
-        // 如果是MongoDB，设置JavaScript语法高亮
-        if (scriptType === 'MongoDB') {
-            // JavaScript已经有内置的语法高亮，但我们可以增强一些MongoDB特定的关键字
-            const jsLanguage = monaco.languages.getLanguages().find(lang => lang.id === 'javascript');
-            if (jsLanguage && jsLanguage.tokensProvider) {
-                const originalProvider = jsLanguage.tokensProvider;
-                // 扩展原有的关键字列表，添加MongoDB特定的关键字
-                if (originalProvider.keywords) {
-                    originalProvider.keywords.push(
-                        'db', 'find', 'findOne', 'update', 'updateOne', 'updateMany',
-                        'insert', 'insertOne', 'insertMany', 'delete', 'deleteOne', 'deleteMany',
-                        '$set', '$push', '$pull', '$inc', '$unset', '$addToSet'
-                    );
-                }
-            }
-        }
-
-        editor.focus();
-
-        // 调整编辑器容器样式以确保canvas完全显示
-        const editorContainer = editor.getDomNode().parentElement;
-        if (editorContainer) {
-            editorContainer.style.overflow = 'visible';
-            editorContainer.style.position = 'relative';
-        }
     };
 
     // 提取字段
@@ -832,302 +625,125 @@ function ScriptValidationPage() {
     const validateSyntax = (line, type) => {
         console.log(line, type, "line, type");
         try {
-            if (type === 'MySQL') {
-                // 简单的MySQL语法验证
-                if (line.match(/UPDATE\s+\w+\s+SET/i) && !line.match(/WHERE/i)) {
-                    return 'UPDATE语句缺少WHERE子句';
-                }
-
-                if (line.match(/DELETE\s+FROM/i) && !line.match(/WHERE/i)) {
-                    return 'DELETE语句缺少WHERE子句';
-                }
-
-                // 检查括号是否匹配
-                if ((line.match(/\(/g) || []).length !== (line.match(/\)/g) || []).length) {
-                    return '括号不匹配';
-                }
-
-                // 检查引号是否匹配
-                const singleQuotes = (line.match(/'/g) || []).length;
-                if (singleQuotes % 2 !== 0) {
-                    return '单引号不匹配';
-                }
-
-                const doubleQuotes = (line.match(/"/g) || []).length;
-                if (doubleQuotes % 2 !== 0) {
-                    return '双引号不匹配';
-                }
-
-                // 新增MySQL语法检查规则
-                // 检查SELECT语句是否包含FROM
-                if (line.match(/^\s*SELECT/i) && !line.match(/FROM\s+\w+/i)) {
-                    return 'SELECT语句缺少FROM子句';
-                }
-
-                // 检查INSERT语句格式
-                if (line.match(/INSERT\s+INTO/i)) {
-                    if (!line.match(/VALUES\s*\(/i) && !line.match(/SET\s+\w+\s*=/i)) {
-                        return 'INSERT语句格式不正确，缺少VALUES或SET';
-                    }
-                }
-
-                // 检查JOIN语句是否有ON条件
-                if (line.match(/JOIN\s+\w+/i) && !line.match(/ON\s+\w+\.\w+\s*=\s*\w+\.\w+/i)) {
-                    return 'JOIN语句缺少ON条件';
-                }
-
-                // 检查GROUP BY后是否有列名
-                if (line.match(/GROUP\s+BY/i) && !line.match(/GROUP\s+BY\s+\w+/i)) {
-                    return 'GROUP BY后缺少列名';
-                }
-
-                // 检查ORDER BY后是否有列名
-                if (line.match(/ORDER\s+BY/i) && !line.match(/ORDER\s+BY\s+\w+/i)) {
-                    return 'ORDER BY后缺少列名';
-                }
-
-                // 检查HAVING是否在GROUP BY之后
-                if (line.match(/HAVING/i) && !line.match(/GROUP\s+BY.*HAVING/i)) {
-                    return 'HAVING子句应在GROUP BY之后';
-                }
-
-                // 检查子查询括号是否完整
-                const subqueryStart = (line.match(/\(\s*SELECT/gi) || []).length;
-                const subqueryEnd = (line.match(/\)\s*FROM|\)\s*WHERE|\)\s*,|\)\s*;|\)\s*$/gi) || []).length;
-                if (subqueryStart !== subqueryEnd && subqueryStart > 0) {
-                    return '子查询括号不完整';
-                }
-            } else {
-                // MongoDB语法验证
-                if (!line.match(/db\.\w+\./i)) {
-                    return '缺少db.collection前缀';
-                }
-
-                // 检查括号和大括号是否匹配
-                const openBraces = (line.match(/\{/g) || []).length;
-                const closeBraces = (line.match(/\}/g) || []).length;
-                if (openBraces !== closeBraces) {
-                    return '大括号不匹配';
-                }
-
-                const openParens = (line.match(/\(/g) || []).length;
-                const closeParens = (line.match(/\)/g) || []).length;
-                if (openParens !== closeParens) {
-                    return '括号不匹配';
-                }
-
-                // 检查引号是否匹配
-                const singleQuotes = (line.match(/'/g) || []).length;
-                if (singleQuotes % 2 !== 0) {
-                    return '单引号不匹配';
-                }
-
-                const doubleQuotes = (line.match(/"/g) || []).length;
-                if (doubleQuotes % 2 !== 0) {
-                    return '双引号不匹配';
-                }
-
-                // 新增MongoDB语法检查规则
-                // 检查find方法的参数
-                if (line.match(/\.find\(/i) && !line.match(/\.find\(\s*(\{\s*.*\s*\}|\{\s*\})\s*[,\)]/i)) {
-                    return 'find方法参数格式不正确，应为对象';
-                }
-
-                // 检查update方法的参数
-                if (line.match(/\.update\(/i) && !line.match(/\.update\(\s*\{.*\}\s*,\s*\{.*\}\s*[,\)]/i)) {
-                    return 'update方法应有查询条件和更新操作两个参数';
-                }
-
-                // 检查updateOne/updateMany方法的参数
-                if ((line.match(/\.updateOne\(/i) || line.match(/\.updateMany\(/i)) &&
-                    !line.match(/\.(updateOne|updateMany)\(\s*\{.*\}\s*,\s*\{.*\}\s*[,\)]/i)) {
-                    return 'updateOne/updateMany方法应有查询条件和更新操作两个参数';
-                }
-
-                // 检查insertOne方法的参数
-                if (line.match(/\.insertOne\(/i) && !line.match(/\.insertOne\(\s*\{.*\}\s*[,\)]/i)) {
-                    return 'insertOne方法参数格式不正确，应为对象';
-                }
-
-                // 检查insertMany方法的参数
-                if (line.match(/\.insertMany\(/i) && !line.match(/\.insertMany\(\s*\[\s*.*\s*\]\s*[,\)]/i)) {
-                    return 'insertMany方法参数格式不正确，应为数组';
-                }
-
-                // 检查deleteOne/deleteMany方法的参数
-                if ((line.match(/\.deleteOne\(/i) || line.match(/\.deleteMany\(/i)) &&
-                    !line.match(/\.(deleteOne|deleteMany)\(\s*\{.*\}\s*[,\)]/i)) {
-                    return 'deleteOne/deleteMany方法参数格式不正确，应为查询条件对象';
-                }
-
-                // 检查$set操作符格式
-                if (line.match(/\$set\s*:/i) && !line.match(/\$set\s*:\s*\{.*\}/i)) {
-                    return '$set操作符格式不正确，应为对象';
-                }
-
-                // 检查$push操作符格式
-                if (line.match(/\$push\s*:/i) && !line.match(/\$push\s*:\s*\{.*\}/i)) {
-                    return '$push操作符格式不正确，应为对象';
-                }
-
-                // 检查$pull操作符格式
-                if (line.match(/\$pull\s*:/i) && !line.match(/\$pull\s*:\s*\{.*\}/i)) {
-                    return '$pull操作符格式不正确，应为对象';
-                }
-
-                // 检查$inc操作符格式
-                if (line.match(/\$inc\s*:/i) && !line.match(/\$inc\s*:\s*\{.*\}/i)) {
-                    return '$inc操作符格式不正确，应为对象';
+            const syntaxRules = validationRules[type]?.Syntax || [];
+            const issues = [];
+    
+            // 应用所有语法规则
+            for (const rule of syntaxRules) {
+                const pattern = new RegExp(rule.pattern);
+                if (!pattern.test(line)) {
+                    issues.push(rule.message);
                 }
             }
+    
+            return issues.length > 0 ? issues.join('; ') : null;
         } catch (error) {
             console.error('验证语法时出错:', error);
-            return '语法验证出错';
+            return null;
         }
-
-        return null;
     };
 
-    // 表格列定义
-    const columns = [
-        {
-            title: '行号',
-            dataIndex: 'lineNumber',
-            key: 'lineNumber',
-            width: 80,
-        },
-        {
-            title: '内容',
-            dataIndex: 'content',
-            key: 'content',
-            ellipsis: true,
-        },
-        {
-            title: '表名',
-            dataIndex: 'tableName',
-            key: 'tableName',
-            width: 120,
-        },
-        {
-            title: '状态',
-            key: 'status',
-            width: 100,
-            render: (_, record) => (
-                record.isValid ?
-                    <Tag color="success">有效</Tag> :
-                    <Tag color="error">无效</Tag>
-            ),
-        },
-        {
-            title: '问题',
-            dataIndex: 'issues',
-            key: 'issues',
-            render: issues => (
-                <>
-                    {issues.map((issue, index) => (
-                        <div key={index}>{issue}</div>
-                    ))}
-                </>
-            ),
-        },
-    ];
+
+
 
     return (
-        <div className="script-validation-page">
-            <Card>
-                <Title level={2}>脚本校验</Title>
-
+        <div className="script-validation-container">
+            <Card title="SQL/MongoDB 脚本验证" className="validation-card">
                 <Space direction="vertical" style={{ width: '100%' }}>
                     <Space>
-                        <span>脚本类型:</span>
                         <Select
                             value={scriptType}
                             onChange={handleScriptTypeChange}
-                            style={{ width: 150 }}
+                            style={{ width: 120 }}
                         >
                             <Option value="MySQL">MySQL</Option>
                             <Option value="MongoDB">MongoDB</Option>
                         </Select>
-
                         <Button
-                            type="primary"
                             icon={<UploadOutlined />}
                             onClick={importScriptFromFile}
                         >
-                            导入脚本文件
+                            导入脚本
+                        </Button>
+                        <Button
+                            type="primary"
+                            onClick={validateScript}
+                            loading={isValidating}
+                        >
+                            验证脚本
+                        </Button>
+                        <Button
+                            icon={<EditOutlined />}
+                            onClick={() => setShowRulesManager(true)}
+                        >
+                            管理验证规则
                         </Button>
                     </Space>
 
-                    <div style={{
-                        border: '1px solid #d9d9d9',
-                        borderRadius: '2px',
-                        marginTop: 16,
-                        position: 'relative',
-                        height: '400px',
-                        overflow: 'hidden'
-                    }}>
+                    <div className="editor-container">
                         <MonacoEditor
                             width="100%"
-                            height="100%" // 使用100%高度填充容器
-                            language={getEditorLanguage()}
-                            theme="sqlCustomTheme"
+                            height="300"
+                            language={scriptType === 'MySQL' ? 'sql' : 'javascript'}
+                            theme="vs-dark"
                             value={scriptContent}
-                            options={editorOptions}
-                            onChange={handleEditorChange}
-                            editorDidMount={editorDidMount}
+                            onChange={setScriptContent}
+                            options={{
+                                selectOnLineNumbers: true,
+                                roundedSelection: false,
+                                readOnly: false,
+                                cursorStyle: 'line',
+                                automaticLayout: true,
+                            }}
                         />
                     </div>
 
-                    <Button
-                        type="primary"
-                        icon={<CheckCircleOutlined />}
-                        onClick={validateScript}
-                        loading={isValidating}
-                        disabled={!scriptContent.trim()}
-                        style={{ marginTop: 16 }}
-                    >
-                        校验脚本
-                    </Button>
-
                     {validationResults.length > 0 && (
-                        <Card
-                            title="校验结果"
-                            style={{ marginTop: 16 }}
-                            className="validation-results-card"
-                        >
+                        <div className="results-container">
+                            <Title level={4}>验证结果</Title>
                             <Table
-                                columns={columns}
                                 dataSource={validationResults}
                                 pagination={false}
-                                size="small"
-                                bordered
-                                scroll={{ y: 300 }}
-                            />
-                        </Card>
+                                rowClassName={(record) => record.isValid ? 'valid-row' : 'invalid-row'}
+                            >
+                                <Table.Column title="行号" dataIndex="lineNumber" key="lineNumber" width={80} />
+                                <Table.Column title="内容" dataIndex="content" key="content" ellipsis={true} />
+                                <Table.Column title="表名" dataIndex="tableName" key="tableName" width={120} />
+                                <Table.Column
+                                    title="状态"
+                                    key="status"
+                                    width={100}
+                                    render={(_, record) => (
+                                        <Tag color={record.isValid ? 'success' : 'error'}>
+                                            {record.isValid ? '有效' : '无效'}
+                                        </Tag>
+                                    )}
+                                />
+                                <Table.Column
+                                    title="问题"
+                                    dataIndex="issues"
+                                    key="issues"
+                                    render={(issues) => (
+                                        <>
+                                            {issues.map((issue, index) => (
+                                                <div key={index}>{issue}</div>
+                                            ))}
+                                        </>
+                                    )}
+                                />
+                            </Table>
+                        </div>
                     )}
                 </Space>
             </Card>
-            {/* 添加全局样式覆盖 */}
-            <style jsx global>{`
-                /* 强制设置关键字颜色 */
-                .monaco-editor .mtk8,
-                .monaco-editor .mtk5,
-                .monaco-editor .mtk12 {
-                    color: blue !important;
-                    font-weight: bold !important;
-                }
-                
-                /* 确保编辑器容器正确显示 */
-                .monaco-editor {
-                    overflow: visible !important;
-                }
-                .monaco-editor .overflow-guard {
-                    overflow: visible !important;
-                }
-                .monaco-editor-background {
-                    overflow: visible !important;
-                }
-            `}</style>
+
+            {showRulesManager && (
+                <RulesManager
+                    rules={validationRules}
+                    onSave={handleRulesSave}
+                    onClose={() => setShowRulesManager(false)}
+                />
+            )}
         </div>
     );
 }

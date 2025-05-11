@@ -1,0 +1,450 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.aliyun.fsi.insurance.biz.proposal.infrastructure.repository.mapper.ProposalPOMapper">
+  <resultMap id="BaseResultMap" type="com.aliyun.fsi.insurance.biz.proposal.infrastructure.repository.dataobject.ProposalPO">
+    <result column="quotation_order_no" jdbcType="VARCHAR" property="quotationOrderNo" />
+    <result column="quotation_order_type" jdbcType="VARCHAR" property="quotationOrderType" />
+    <result column="is_from_inquiry" property="isFromInquiry" />
+    <result column="quotation_no" jdbcType="VARCHAR" property="quotationNo" />
+    <result column="underwriting_method_cd" jdbcType="VARCHAR" property="underwritingMethodCd" />
+    <result column="proposal_method_cd" property="proposalMethodCd" />
+    <result column="proposal_no" jdbcType="VARCHAR" property="proposalNo" />
+    <result column="external_order_no" jdbcType="VARCHAR" property="externalOrderNo" />
+    <result column="proposal_dt" jdbcType="TIMESTAMP" property="proposalDt" />
+    <result column="proposal_copies" jdbcType="INTEGER" property="proposalCopies" />
+    <result column="quotation_create_dt" jdbcType="TIMESTAMP" property="quotationCreateDt" />
+    <result column="proposal_create_dt" jdbcType="TIMESTAMP" property="proposalCreateDt" />
+    <result column="is_electronic_sign" jdbcType="VARCHAR" property="isElectronicSign" />
+    <result column="is_read_clause" jdbcType="VARCHAR" property="isReadClause" />
+    <result column="policy_no" jdbcType="VARCHAR" property="policyNo" />
+    <result column="quotation_status_cd" jdbcType="VARCHAR" property="quotationStatusCd" />
+    <result column="proposal_status_cd" jdbcType="VARCHAR" property="proposalStatusCd" />
+    <result column="policy_category_cd" jdbcType="VARCHAR" property="policyCategoryCd" />
+    <result column="policy_type_cd" jdbcType="VARCHAR" property="policyTypeCd" />
+    <result column="policy_period_unit_cd" jdbcType="VARCHAR" property="policyPeriodUnitCd" />
+    <result column="policy_period" jdbcType="VARCHAR" property="policyPeriod" />
+    <result column="policy_start_dt" jdbcType="TIMESTAMP" property="policyStartDt" />
+    <result column="policy_end_dt" jdbcType="TIMESTAMP" property="policyEndDt" />
+    <result column="is_group_policy" jdbcType="VARCHAR" property="isGroupPolicy" />
+    <result column="sign_dt" jdbcType="TIMESTAMP" property="signDt" />
+    <result column="is_auto_transfer_new" jdbcType="VARCHAR" property="isAutoTransferNew" />
+    <result column="hesitation_deadline_dt" jdbcType="TIMESTAMP" property="hesitationDeadlineDt" />
+    <result column="waiting_period_deadline_dt" jdbcType="TIMESTAMP" property="waitingPeriodDeadlineDt" />
+    <result column="is_agriculture" jdbcType="VARCHAR" property="isAgriculture" />
+    <result column="agriculture_type_cd" jdbcType="VARCHAR" property="agricultureTypeCd" />
+    <result column="is_hand_made_ticket" jdbcType="VARCHAR" property="isHandMadeTicket" />
+    <result column="hand_made_ticket_no" jdbcType="VARCHAR" property="handMadeTicketNo" />
+    <result column="subsidy_flag_cd" jdbcType="VARCHAR" property="subsidyFlagCd" />
+    <result column="is_electron_policy" jdbcType="VARCHAR" property="isElectronPolicy" />
+    <result column="is_commerce_reinsurance" property="isCommerceReinsurance" />
+    <result column="is_cross_sale" jdbcType="VARCHAR" property="isCrossSale" />
+    <result column="installment_flag_cd" jdbcType="VARCHAR" property="installmentFlagCd" />
+    <result column="installment_period" property="installmentPeriod" />
+    <result column="installment_interval" property="installmentInterval" />
+    <result column="installment_interval_unit_cd" property="installmentIntervalUnitCd" />
+    <result column="is_see_fee" property="isSeeFee" />
+    <result column="proposal_label_cd" property="proposalLabelCd" />
+    <result column="customer_level_label_cd" property="customerLevelLabelCd" />
+    <result column="trans_mode_cd" property="transModeCd" />
+    <result column="installment_info" jdbcType="VARCHAR" property="installmentInfo" />
+    <result column="largess_flag_cd" jdbcType="VARCHAR" property="largessFlagCd" />
+    <result column="coinsurance_flag_cd" jdbcType="VARCHAR" property="coinsuranceFlagCd" />
+    <result column="is_facultative_reinsurance" jdbcType="VARCHAR" property="isFacultativeReinsurance" />
+    <result column="dispute_resolution_cd" jdbcType="VARCHAR" property="disputeResolutionCd" />
+    <result column="judicial_scope_cd" jdbcType="VARCHAR" property="judicialScopeCd" />
+    <result column="arbitration_agency_cd" jdbcType="VARCHAR" property="arbitrationAgencyCd" />
+    <result column="arbitration_agency_name" jdbcType="VARCHAR" property="arbitrationAgencyName" />
+    <result column="online" jdbcType="VARCHAR" property="online" />
+    <result column="is_agree_customer_share" jdbcType="VARCHAR" property="isAgreeCustomerShare" />
+    <result column="is_sign_report" jdbcType="VARCHAR" property="isSignReport" />
+    <result column="system_source_code" jdbcType="VARCHAR" property="systemSourceCode" />
+    <result column="is_direct_sale" property="isDirectSale" />
+    <result column="biz_source_cd" property="bizSourceCd" />
+    <result column="biz_source_category_cd" property="bizSourceCategoryCd" />
+    <result column="biz_source_path" property="bizSourcePath" />
+    <result column="channel_type_cd" property="channelTypeCd" />
+    <result column="is_effective_immediately" property="isEffectiveImmediately" />
+    <result column="is_reserve_sign" property="isReserveSign" />
+    <result column="comment" jdbcType="VARCHAR" property="comment" />
+    <result column="language_cd" jdbcType="VARCHAR" property="languageCd" />
+    <result column="extend_info" jdbcType="VARCHAR" property="extendInfo" />
+    <result column="deductible" jdbcType="VARCHAR" property="deductible" />
+    <result column="limit" jdbcType="VARCHAR" property="limit" />
+    <result column="issue_org" jdbcType="VARCHAR" property="issueOrg" />
+    <result column="health_notice" jdbcType="VARCHAR" property="healthNotice"/>
+    <result column="sign_org" jdbcType="VARCHAR" property="signOrg" />
+    <result column="record_holder" jdbcType="VARCHAR" property="recordHolder" />
+    <result column="handler_list" jdbcType="VARCHAR" property="handlerList" />
+    <result column="fee" jdbcType="VARCHAR" property="fee" />
+    <result column="channel" jdbcType="VARCHAR" property="channel" />
+    <result column="related_project" jdbcType="VARCHAR" property="relatedProject" />
+    <result column="related_third_party_list" jdbcType="VARCHAR" property="relatedThirdPartyList" />
+    <result column="product_category_code" jdbcType="VARCHAR" property="productCategoryCode" />
+    <result column="product_category_name" jdbcType="VARCHAR" property="productCategoryName" />
+    <result column="product_small_category_code" jdbcType="VARCHAR" property="productSmallCategoryCode" />
+    <result column="product_small_category_name" jdbcType="VARCHAR" property="productSmallCategoryName" />
+    <result column="product_code" jdbcType="VARCHAR" property="productCode" />
+    <result column="product_name" jdbcType="VARCHAR" property="productName" />
+    <result column="product_version" jdbcType="VARCHAR" property="productVersion" />
+    <result column="scheme_type_cd" jdbcType="VARCHAR" property="schemeTypeCd" />
+    <result column="scheme_code" jdbcType="VARCHAR" property="schemeCode" />
+    <result column="scheme_version" jdbcType="VARCHAR" property="schemeVersion" />
+    <result column="scheme_name" jdbcType="VARCHAR" property="schemeName" />
+    <result column="family_policy_flag_cd" jdbcType="VARCHAR" property="familyPolicyFlagCd" />
+    <result column="short_term_policy_flag_cd" jdbcType="VARCHAR" property="shortTermPolicyFlagCd" />
+    <result column="followFee" jdbcType="VARCHAR" property="followfee" />
+    <result column="customer_contact" jdbcType="VARCHAR" property="customerContact" />
+    <result column="policy_relation_info" jdbcType="VARCHAR" property="policyRelationInfo" />
+    <result column="creator" jdbcType="VARCHAR" property="creator" />
+    <result column="modifier" jdbcType="VARCHAR" property="modifier" />
+    <result column="gmt_create" jdbcType="TIMESTAMP" property="gmtCreate" />
+    <result column="gmt_modified" jdbcType="TIMESTAMP" property="gmtModified" />
+    <result column="tenant_code" jdbcType="VARCHAR" property="tenantCode" />
+    <result column="is_valid" jdbcType="INTEGER" property="isValid" />
+    <result column="limit_reserve_sign_days" property="limitReserveSignDays" />
+    <result column="is_supplementary" property="isSupplementary" />
+      <result column="is_supply_insured" property="isSupplyInsured"/>
+    <result column="anti_money_laundering_flag_cd" property="antiMoneyLaunderingFlagCd" />
+    <result column="is_remote_underwrite" property="isRemoteUnderwrite" />
+    <result column="approve_info" property="approveInfo" />
+    <result column="value_added_expense_amount" property="valueAddedExpenseAmount" jdbcType="DECIMAL"/>
+    <result column="is_facultative_reinsurance_in" property="isFacultativeReinsuranceIn" jdbcType="VARCHAR"/>
+    <result column="system_source_level2_code" jdbcType="VARCHAR" property="systemSourceLevel2Code"/>
+    <result column="customer_group_cd" jdbcType="VARCHAR" property="customerGroupCd"/>
+    <result column="supplementary_clause_info" jdbcType="VARCHAR" property="supplementaryClauseInfo"/>
+  </resultMap>
+  <sql id="columns">
+    quotation_order_no, quotation_order_type, is_from_inquiry,
+    quotation_no, underwriting_method_cd, proposal_method_cd, proposal_no,
+      external_order_no, proposal_dt, proposal_copies,
+      quotation_create_dt, proposal_create_dt,
+      is_read_clause, is_electronic_sign,policy_no, quotation_status_cd,
+      proposal_status_cd, policy_category_cd, policy_type_cd,
+      policy_period_unit_cd, policy_period, policy_start_dt,
+      policy_end_dt, is_group_policy, sign_dt,
+      is_auto_transfer_new, hesitation_deadline_dt,
+      waiting_period_deadline_dt, is_agriculture,
+      agriculture_type_cd, is_hand_made_ticket, hand_made_ticket_no,
+      subsidy_flag_cd, is_electron_policy, is_commerce_reinsurance, is_cross_sale,
+      installment_flag_cd, installment_period, installment_interval, installment_interval_unit_cd, is_see_fee, proposal_label_cd, customer_level_label_cd, trans_mode_cd, installment_info,
+      largess_flag_cd, coinsurance_flag_cd,
+      is_facultative_reinsurance, dispute_resolution_cd,
+      judicial_scope_cd, arbitration_agency_cd,arbitration_agency_name,
+      `online`, is_agree_customer_share, is_sign_report,
+      limit_reserve_sign_days, is_supplementary,is_supply_insured, anti_money_laundering_flag_cd, is_remote_underwrite,system_source_code,
+      is_direct_sale,biz_source_cd,biz_source_category_cd,biz_source_path,channel_type_cd,is_effective_immediately,is_reserve_sign,
+      `comment`, language_cd, extend_info, deductible,
+      `limit`, issue_org,health_notice, sign_org,
+      record_holder, handler_list, fee,
+      `channel`,related_project,related_third_party_list, product_category_code, product_category_name,
+      product_small_category_code,product_small_category_name,
+      product_code,
+      product_name, product_version, scheme_type_cd, scheme_code, scheme_version, scheme_name,
+      approve_info,
+      is_facultative_reinsurance_in,
+      value_added_expense_amount,
+      system_source_level2_code,
+      family_policy_flag_cd, short_term_policy_flag_cd,
+      followFee, customer_contact,
+      policy_relation_info,
+      customer_group_cd,
+      creator, modifier,
+      gmt_create, gmt_modified, tenant_code,
+      is_valid , supplementary_clause_info
+  </sql>
+
+  <sql id="columnValue">
+    #{quotationOrderNo,jdbcType=VARCHAR}, #{quotationOrderType,jdbcType=VARCHAR}, #{isFromInquiry},
+    #{quotationNo,jdbcType=VARCHAR}, #{underwritingMethodCd,jdbcType=VARCHAR}, #{proposalMethodCd}, #{proposalNo,jdbcType=VARCHAR},
+      #{externalOrderNo,jdbcType=VARCHAR}, #{proposalDt,jdbcType=TIMESTAMP}, #{proposalCopies,jdbcType=INTEGER},
+      #{quotationCreateDt,jdbcType=TIMESTAMP}, #{proposalCreateDt,jdbcType=TIMESTAMP},
+      #{isReadClause,jdbcType=VARCHAR},#{isElectronicSign,jdbcType=VARCHAR},
+      #{policyNo,jdbcType=VARCHAR}, #{quotationStatusCd,jdbcType=VARCHAR},
+      #{proposalStatusCd,jdbcType=VARCHAR}, #{policyCategoryCd,jdbcType=VARCHAR}, #{policyTypeCd,jdbcType=VARCHAR},
+      #{policyPeriodUnitCd,jdbcType=VARCHAR}, #{policyPeriod,jdbcType=VARCHAR}, #{policyStartDt,jdbcType=TIMESTAMP},
+      #{policyEndDt,jdbcType=TIMESTAMP}, #{isGroupPolicy,jdbcType=VARCHAR}, #{signDt,jdbcType=TIMESTAMP},
+      #{isAutoTransferNew,jdbcType=VARCHAR}, #{hesitationDeadlineDt,jdbcType=TIMESTAMP},
+      #{waitingPeriodDeadlineDt,jdbcType=TIMESTAMP}, #{isAgriculture,jdbcType=VARCHAR},
+      #{agricultureTypeCd,jdbcType=VARCHAR}, #{isHandMadeTicket,jdbcType=VARCHAR}, #{handMadeTicketNo,jdbcType=VARCHAR},
+      #{subsidyFlagCd,jdbcType=VARCHAR}, #{isElectronPolicy,jdbcType=VARCHAR}, #{isCommerceReinsurance}, #{isCrossSale,jdbcType=VARCHAR},
+      #{installmentFlagCd,jdbcType=VARCHAR}, #{installmentPeriod}, #{installmentInterval}, #{installmentIntervalUnitCd}, #{isSeeFee}, #{proposalLabelCd}, #{customerLevelLabelCd}, #{transModeCd}, #{installmentInfo},
+      #{largessFlagCd,jdbcType=VARCHAR}, #{coinsuranceFlagCd,jdbcType=VARCHAR},
+      #{isFacultativeReinsurance,jdbcType=VARCHAR}, #{disputeResolutionCd,jdbcType=VARCHAR},
+      #{judicialScopeCd,jdbcType=VARCHAR}, #{arbitrationAgencyCd,jdbcType=VARCHAR},#{arbitrationAgencyName,jdbcType=VARCHAR},
+      #{online,jdbcType=VARCHAR}, #{isAgreeCustomerShare,jdbcType=VARCHAR}, #{isSignReport,jdbcType=VARCHAR},
+      #{limitReserveSignDays}, #{isSupplementary},#{isSupplyInsured}, #{antiMoneyLaunderingFlagCd}, #{isRemoteUnderwrite}, #{systemSourceCode},
+      #{isDirectSale},#{bizSourceCd},#{bizSourceCategoryCd},#{bizSourcePath},#{channelTypeCd},#{isEffectiveImmediately},#{isReserveSign},
+      #{comment,jdbcType=VARCHAR}, #{languageCd,jdbcType=VARCHAR}, #{extendInfo,jdbcType=VARCHAR}, #{deductible,jdbcType=VARCHAR},
+      #{limit,jdbcType=VARCHAR}, #{issueOrg,jdbcType=VARCHAR},#{healthNotice,jdbcType=VARCHAR}, #{signOrg,jdbcType=VARCHAR},
+      #{recordHolder,jdbcType=VARCHAR}, #{handlerList,jdbcType=VARCHAR}, #{fee,jdbcType=VARCHAR},
+      #{channel,jdbcType=VARCHAR}, #{relatedProject,jdbcType=VARCHAR}, #{relatedThirdPartyList,jdbcType=VARCHAR}, #{productCategoryCode,jdbcType=VARCHAR}, #{productCategoryName,jdbcType=VARCHAR},
+      #{productSmallCategoryCode,jdbcType=VARCHAR}, #{productSmallCategoryName,jdbcType=VARCHAR},
+      #{productCode,jdbcType=VARCHAR},
+      #{productName,jdbcType=VARCHAR}, #{productVersion,jdbcType=VARCHAR}, #{schemeTypeCd,jdbcType=VARCHAR}, #{schemeCode,jdbcType=VARCHAR}, #{schemeVersion,jdbcType=VARCHAR}, #{schemeName,jdbcType=VARCHAR},
+      #{approveInfo,jdbcType=VARCHAR},
+      #{isFacultativeReinsuranceIn,jdbcType=VARCHAR},
+      #{valueAddedExpenseAmount,jdbcType=DECIMAL},
+      #{systemSourceLevel2Code,jdbcType=VARCHAR},
+      #{familyPolicyFlagCd,jdbcType=VARCHAR}, #{shortTermPolicyFlagCd,jdbcType=VARCHAR},
+      #{followfee,jdbcType=VARCHAR}, #{customerContact,jdbcType=VARCHAR},
+      #{policyRelationInfo,jdbcType=VARCHAR},
+      #{customerGroupCd,jdbcType=VARCHAR},
+      #{creator,jdbcType=VARCHAR}, #{modifier,jdbcType=VARCHAR},
+      now(3), now(3), #{tenantCode,jdbcType=VARCHAR}, 1, #{supplementaryClauseInfo,jdbcType=VARCHAR}
+  </sql>
+
+    <sql id="commonUpdateColumn">
+        quotation_order_no = #{quotationOrderNo,jdbcType=VARCHAR},
+        <!-- is_from_inquiry = #{isFromInquiry,jdbcType=VARCHAR},  -->
+        <if test="quotationNo != null and quotationNo != ''">
+            quotation_no = #{quotationNo,jdbcType=VARCHAR},
+        </if>
+        quotation_order_type = #{quotationOrderType,jdbcType=VARCHAR},
+        underwriting_method_cd = #{underwritingMethodCd,jdbcType=VARCHAR},
+        proposal_method_cd = #{proposalMethodCd,jdbcType=VARCHAR},
+        <!-- proposal_no = #{proposalNo,jdbcType=VARCHAR}, -->
+        <!-- external_order_no = #{externalOrderNo,jdbcType=VARCHAR}, -->
+        proposal_dt = #{proposalDt,jdbcType=TIMESTAMP},
+        proposal_copies = #{proposalCopies,jdbcType=INTEGER},
+        <!--        quotation_create_dt = #{quotationCreateDt,jdbcType=TIMESTAMP},-->
+<!--                proposal_create_dt = #{proposalCreateDt,jdbcType=TIMESTAMP},-->
+        is_read_clause = #{isReadClause,jdbcType=VARCHAR},
+        policy_no = #{policyNo,jdbcType=VARCHAR},
+        <!--        quotation_status_cd = #{quotationStatusCd,jdbcType=VARCHAR},-->
+        proposal_status_cd = #{proposalStatusCd,jdbcType=VARCHAR},
+        policy_category_cd = #{policyCategoryCd,jdbcType=VARCHAR},
+        policy_type_cd = #{policyTypeCd,jdbcType=VARCHAR},
+        policy_period_unit_cd = #{policyPeriodUnitCd,jdbcType=VARCHAR},
+        policy_period = #{policyPeriod,jdbcType=VARCHAR},
+        policy_start_dt = #{policyStartDt,jdbcType=TIMESTAMP},
+        policy_end_dt = #{policyEndDt,jdbcType=TIMESTAMP},
+        is_group_policy = #{isGroupPolicy,jdbcType=VARCHAR},
+        sign_dt = #{signDt,jdbcType=TIMESTAMP},
+        is_auto_transfer_new = #{isAutoTransferNew,jdbcType=VARCHAR},
+        hesitation_deadline_dt = #{hesitationDeadlineDt,jdbcType=TIMESTAMP},
+        waiting_period_deadline_dt = #{waitingPeriodDeadlineDt,jdbcType=TIMESTAMP},
+        is_agriculture = #{isAgriculture,jdbcType=VARCHAR},
+        agriculture_type_cd = #{agricultureTypeCd,jdbcType=VARCHAR},
+        is_hand_made_ticket = #{isHandMadeTicket,jdbcType=VARCHAR},
+        hand_made_ticket_no = #{handMadeTicketNo,jdbcType=VARCHAR},
+        subsidy_flag_cd = #{subsidyFlagCd,jdbcType=VARCHAR},
+        is_electron_policy = #{isElectronPolicy,jdbcType=VARCHAR},
+        is_commerce_reinsurance = #{isCommerceReinsurance},
+        is_cross_sale = #{isCrossSale,jdbcType=VARCHAR},
+        installment_flag_cd = #{installmentFlagCd,jdbcType=VARCHAR},
+        installment_period = #{installmentPeriod},
+        installment_interval = #{installmentInterval},
+        installment_interval_unit_cd = #{installmentIntervalUnitCd},
+        is_see_fee = #{isSeeFee},
+        proposal_label_cd = #{proposalLabelCd},
+        customer_level_label_cd = #{customerLevelLabelCd},
+        trans_mode_cd = #{transModeCd},
+        installment_info = #{installmentInfo,jdbcType=VARCHAR},
+        largess_flag_cd = #{largessFlagCd,jdbcType=VARCHAR},
+        coinsurance_flag_cd = #{coinsuranceFlagCd,jdbcType=VARCHAR},
+        is_facultative_reinsurance = #{isFacultativeReinsurance,jdbcType=VARCHAR},
+        dispute_resolution_cd = #{disputeResolutionCd,jdbcType=VARCHAR},
+        judicial_scope_cd = #{judicialScopeCd,jdbcType=VARCHAR},
+        arbitration_agency_cd = #{arbitrationAgencyCd,jdbcType=VARCHAR},
+        arbitration_agency_name = #{arbitrationAgencyName,jdbcType=VARCHAR},
+        `online` = #{online,jdbcType=VARCHAR},
+        is_agree_customer_share = #{isAgreeCustomerShare,jdbcType=VARCHAR},
+        is_sign_report = #{isSignReport,jdbcType=VARCHAR},
+        limit_reserve_sign_days = #{limitReserveSignDays},
+        is_supplementary = #{isSupplementary,jdbcType=VARCHAR},
+        is_supply_insured = #{isSupplyInsured,jdbcType=VARCHAR},
+        anti_money_laundering_flag_cd = #{antiMoneyLaunderingFlagCd,jdbcType=VARCHAR},
+        is_remote_underwrite = #{isRemoteUnderwrite,jdbcType=VARCHAR},
+<!--        `system_source_code` = #{systemSourceCode,jdbcType=VARCHAR},-->
+        system_source_level2_code = #{systemSourceLevel2Code,jdbcType=VARCHAR},
+        is_direct_sale = #{isDirectSale,jdbcType=VARCHAR},
+        biz_source_cd = #{bizSourceCd,jdbcType=VARCHAR},
+        biz_source_category_cd = #{bizSourceCategoryCd,jdbcType=VARCHAR},
+        biz_source_path = #{bizSourcePath,jdbcType=VARCHAR},
+        channel_type_cd = #{channelTypeCd,jdbcType=VARCHAR},
+        is_effective_immediately= #{isEffectiveImmediately,jdbcType=VARCHAR},
+        is_reserve_sign = #{isReserveSign,jdbcType=VARCHAR},
+        `comment` = #{comment,jdbcType=VARCHAR},
+        language_cd = #{languageCd,jdbcType=VARCHAR},
+        extend_info = #{extendInfo,jdbcType=VARCHAR},
+        deductible = #{deductible,jdbcType=VARCHAR},
+        `limit` = #{limit,jdbcType=VARCHAR},
+        issue_org = #{issueOrg,jdbcType=VARCHAR},
+        health_notice = #{healthNotice, jdbcType=VARCHAR},
+        sign_org = #{signOrg,jdbcType=VARCHAR},
+        record_holder = #{recordHolder,jdbcType=VARCHAR},
+        handler_list = #{handlerList,jdbcType=VARCHAR},
+        fee = #{fee,jdbcType=VARCHAR},
+        `channel` = #{channel,jdbcType=VARCHAR},
+        related_project = #{relatedProject,jdbcType=VARCHAR},
+        related_third_party_list = #{relatedThirdPartyList,jdbcType=VARCHAR},
+        product_category_code = #{productCategoryCode,jdbcType=VARCHAR},
+        product_category_name = #{productCategoryName,jdbcType=VARCHAR},
+        product_small_category_code = #{productSmallCategoryCode,jdbcType=VARCHAR},
+        product_small_category_name = #{productSmallCategoryName,jdbcType=VARCHAR},
+        product_code = #{productCode,jdbcType=VARCHAR},
+        product_name = #{productName,jdbcType=VARCHAR},
+        product_version = #{productVersion,jdbcType=VARCHAR},
+        scheme_type_cd = #{schemeTypeCd,jdbcType=VARCHAR},
+        scheme_code = #{schemeCode,jdbcType=VARCHAR},
+        scheme_version = #{schemeVersion,jdbcType=VARCHAR},
+        scheme_name = #{schemeName,jdbcType=VARCHAR},
+        family_policy_flag_cd = #{familyPolicyFlagCd,jdbcType=VARCHAR},
+        short_term_policy_flag_cd = #{shortTermPolicyFlagCd,jdbcType=VARCHAR},
+        followFee = #{followfee,jdbcType=VARCHAR},
+        customer_contact = #{customerContact,jdbcType=VARCHAR},
+        policy_relation_info = #{policyRelationInfo,jdbcType=VARCHAR},
+        modifier = #{modifier,jdbcType=VARCHAR},
+        approve_info = #{approveInfo,jdbcType=VARCHAR},
+        is_facultative_reinsurance_in= #{isFacultativeReinsuranceIn,jdbcType=VARCHAR},
+        value_added_expense_amount=#{valueAddedExpenseAmount,jdbcType=DECIMAL},
+        system_source_level2_code = #{systemSourceLevel2Code,jdbcType=VARCHAR},
+        customer_group_cd = #{customerGroupCd,jdbcType=VARCHAR},
+        is_valid=#{isValid,jdbcType=INTEGER},
+        is_electronic_sign=#{isElectronicSign,jdbcType=VARCHAR},
+        gmt_modified = now(3),
+        supplementary_clause_info = #{supplementaryClauseInfo,jdbcType=VARCHAR}
+    </sql>
+
+
+  <insert id="insert" parameterType="com.aliyun.fsi.insurance.biz.proposal.infrastructure.repository.dataobject.ProposalPO">
+    insert into t_ply_proposal (<include refid="columns"/>)
+    values (<include refid="columnValue"/>)
+  </insert>
+
+  <update id="update" parameterType="com.aliyun.fsi.insurance.biz.proposal.infrastructure.repository.dataobject.ProposalPO">
+    UPDATE t_ply_proposal set
+        <include refid="commonUpdateColumn"/>
+        WHERE proposal_no= #{proposalNo}
+  </update>
+
+
+    <!--  更新报价单信息  -->
+    <update id="updateWithQuotation" parameterType="com.aliyun.fsi.insurance.biz.proposal.infrastructure.repository.dataobject.ProposalPO">
+        UPDATE t_ply_proposal set
+        quotation_no = #{quotationNo,jdbcType=VARCHAR},
+        quotation_order_no = #{quotationOrderNo,jdbcType=VARCHAR},
+        quotation_order_type = #{quotationOrderType,jdbcType=VARCHAR},
+        quotation_create_dt = #{quotationCreateDt,jdbcType=TIMESTAMP},
+        quotation_status_cd = #{quotationStatusCd,jdbcType=VARCHAR},
+        system_source_code = #{systemSourceCode,jdbcType=VARCHAR},
+        external_order_no = #{externalOrderNo,jdbcType=VARCHAR},
+        <include refid="commonUpdateColumn"/>
+        WHERE proposal_no= #{proposalNo}
+    </update>
+
+
+    <!-- 根据投保单号更新投保单状态 -->
+  <update id="updateProposalStatus">
+    update t_ply_proposal
+    set proposal_status_cd = #{proposalStatus},
+        modifier = #{modifier,jdbcType=VARCHAR},
+        gmt_modified       = now(3)
+    where proposal_no = #{proposalNo}
+  </update>
+
+    <!-- 根据投保单号更新投保单状态 -->
+    <update id="updateProposalStatusForConcurrency">
+    update t_ply_proposal
+    set proposal_status_cd = #{newProposalStatus},
+        modifier = #{modifier,jdbcType=VARCHAR},
+        gmt_modified       = now(3)
+    where proposal_no = #{proposalNo}
+    and proposal_status_cd=#{proposalStatus}
+  </update>
+
+    <update id="updateProposalStatusAndValid">
+        update t_ply_proposal
+        set
+            proposal_status_cd = #{proposalStatus},
+            is_valid=#{valid},
+            modifier = #{modifier,jdbcType=VARCHAR},
+            gmt_modified = now(3)
+        where proposal_no = #{proposalNo}
+    </update>
+
+  <!--根据投保单号查询投保单信息-->
+  <select id="selectByProposalNo" resultMap="BaseResultMap" parameterType="java.lang.String">
+    select <include refid="columns"/>
+    from t_ply_proposal
+    Where proposal_no = #{proposalNo}
+  </select>
+
+    <!--根据报价单号查询投保单信息-->
+    <select id="selectByQuotationNo" resultMap="BaseResultMap" parameterType="java.lang.String">
+        /*+DBP: $ROUTE={SCAN_ALL()}*/
+        select <include refid="columns"/>
+        from t_ply_proposal
+        Where quotation_no = #{quotationNo}
+    </select>
+
+  <!--根据投保单号查询投保单数量-->
+  <select id="selectCountByProposalNo" resultType="int" parameterType="java.lang.String">
+    select count(1) from t_ply_proposal Where proposal_no = #{proposalNo} and is_valid = 1 limit 1;
+  </select>
+
+  <!--批量根据投保单号查询投保单信息-->
+  <select id="batchQueryByProposalNos" resultMap="BaseResultMap" parameterType="java.util.List">
+    select <include refid="columns"/>
+    from t_ply_proposal
+    <where>
+      proposal_no in
+      <foreach collection="list" index="index" item="item" open="(" separator="," close=")">
+        #{item}
+      </foreach>
+        and is_valid = 1
+    </where>
+  </select>
+
+  <!-- 查询投保单状态 -->
+  <select id="selectProposalStatus" resultType="java.lang.String" parameterType="java.lang.String">
+    select proposal_status_cd from t_ply_proposal where proposal_no = #{proposalNo} and is_valid = 1;
+  </select>
+
+
+    <update id="editStatusByProposalNos" parameterType="java.util.List" >
+        update t_ply_proposal
+        set proposal_status_cd = #{proposalStatus},
+        modifier = #{modifier,jdbcType=VARCHAR},
+        gmt_modified       = now(3)
+        where proposal_no in
+        <foreach collection="proposals" index="index" item="item" open="(" separator="," close=")">
+            #{item}
+        </foreach>
+    </update>
+
+    <select id="renewProposal" resultMap="BaseResultMap" parameterType="java.lang.String">
+        select <include refid="columns"/>
+        from t_ply_proposal
+        where
+            underwriting_method_cd = 'X'
+        and
+            is_valid = 1
+        and
+            gmt_create BETWEEN #{startTime} and #{endTime};
+    </select>
+
+    <select id="quotationOrderNoNotNull" resultMap="BaseResultMap" parameterType="java.lang.String">
+        /*+DBP: $ROUTE={SCAN_ALL()}*/
+        select <include refid="columns"/>
+        from t_ply_proposal
+        where
+        quotation_order_no IS NOT NULL
+        and product_small_category_code = #{productSmallCategoryCode}
+        and
+        is_valid = 1 order by gmt_create desc;
+    </select>
+
+   <update id="deleteProposalByLogic" parameterType="com.aliyun.fsi.insurance.biz.proposal.infrastructure.repository.dataobject.ProposalPO">
+    UPDATE t_ply_proposal set
+    <include refid="commonUpdateColumn"/>
+    WHERE proposal_no= #{proposalNo}
+    </update>
+
+    <update id="updateBusinessNo" parameterType="com.aliyun.fsi.insurance.biz.proposal.infrastructure.repository.dataobject.ProposalPO">
+        UPDATE t_ply_proposal set
+        extend_info = #{extendInfo},gmt_modified = now(3)
+        WHERE proposal_no= #{proposalNo}
+    </update>
+
+</mapper>

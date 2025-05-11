@@ -1,0 +1,175 @@
+{
+  "MySQL": {
+    "String": [
+      {
+        "id": "1",
+        "name": "字符串引号规则",
+        "description": "字符串值必须使用单引号",
+        "pattern": "^'.*'$",
+        "message": "应该使用单引号包围",
+        "severity": "error"
+      }
+    ],
+    "Number": [
+      {
+        "id": "2",
+        "name": "数字格式规则",
+        "description": "数字不应使用引号",
+        "pattern": "^[^'\"].*[^'\"]$",
+        "message": "不应使用引号包围",
+        "severity": "error"
+      }
+    ],
+    "Date": [
+      {
+        "id": "3",
+        "name": "日期格式规则",
+        "description": "日期应使用标准格式",
+        "pattern": "^'\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}'$",
+        "message": "应使用 YYYY-MM-DD HH:mm:ss 格式并用单引号包围",
+        "severity": "error"
+      }
+    ],
+    "Boolean": [
+      {
+        "id": "4",
+        "name": "布尔值规则",
+        "description": "布尔值应为 TRUE 或 FALSE",
+        "pattern": "^(TRUE|FALSE|0|1)$",
+        "message": "应为 TRUE、FALSE、0 或 1",
+        "severity": "error"
+      }
+    ],
+    "Object": [],
+    "Array": [],
+    "Syntax": [
+      {
+        "id": "5",
+        "name": "SELECT * 规则",
+        "description": "避免使用 SELECT *",
+        "pattern": "^(?!.*SELECT\\s+\\*(?!\\s+FROM\\s+COUNT\\(\\*\\))).*$",
+        "message": "应避免使用 SELECT *，请明确指定需要的列",
+        "severity": "warning"
+      },
+      {
+        "id": "6",
+        "name": "UPDATE WHERE规则",
+        "description": "UPDATE语句必须包含WHERE子句",
+        "pattern": "^(?!UPDATE\\s+\\w+\\s+SET\\s+.*(?!\\s+WHERE\\s+)).*$",
+        "message": "UPDATE语句必须包含WHERE子句",
+        "severity": "error"
+      },
+      {
+        "id": "7",
+        "name": "DELETE WHERE规则",
+        "description": "DELETE语句必须包含WHERE子句",
+        "pattern": "^(?!DELETE\\s+FROM\\s+\\w+(?!\\s+WHERE\\s+)).*$",
+        "message": "DELETE语句必须包含WHERE子句",
+        "severity": "error"
+      },
+      {
+        "id": "8",
+        "name": "显式JOIN规则",
+        "description": "应使用显式JOIN语法",
+        "pattern": "^(?!.*FROM\\s+\\w+\\s*,\\s*\\w+).*$",
+        "message": "应使用显式的JOIN语法代替隐式连接",
+        "severity": "warning"
+      }
+    ]
+  },
+  "MongoDB": {
+    "String": [
+      {
+        "id": "9",
+        "name": "字符串引号规则",
+        "description": "字符串值必须使用单引号或双引号",
+        "pattern": "^(['\"])(.*?)\\1$",
+        "message": "应该使用单引号或双引号包围",
+        "severity": "error"
+      }
+    ],
+    "Number": [
+      {
+        "id": "10",
+        "name": "数字格式规则",
+        "description": "数字不应使用引号",
+        "pattern": "^[^'\"].*[^'\"]$",
+        "message": "不应使用引号包围",
+        "severity": "error"
+      }
+    ],
+    "Date": [
+      {
+        "id": "11",
+        "name": "日期格式规则",
+        "description": "日期应使用ISODate函数",
+        "pattern": "^ISODate\\(.*\\)$",
+        "message": "应使用ISODate()函数",
+        "severity": "error"
+      },
+      {
+        "id": "12",
+        "name": "日期字符串格式",
+        "description": "ISODate参数应使用标准格式",
+        "pattern": "^ISODate\\(\"\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{3})?Z\"\\)$",
+        "message": "应使用ISO标准日期格式，如\"YYYY-MM-DDTHH:MM:SS.MMMZ\"",
+        "severity": "warning"
+      }
+    ],
+    "Boolean": [
+      {
+        "id": "13",
+        "name": "布尔值规则",
+        "description": "布尔值应为 true 或 false",
+        "pattern": "^(true|false)$",
+        "message": "应为 true 或 false",
+        "severity": "error"
+      }
+    ],
+    "Object": [
+      {
+        "id": "18",
+        "name": "嵌套对象规则",
+        "description": "嵌套对象不应过深",
+        "pattern": "^(?!.*\\{.*\\{.*\\{.*\\{.*\\}).*$",
+        "message": "嵌套对象不应超过3层",
+        "severity": "warning"
+      }
+    ],
+    "Array": [],
+    "Syntax": [
+      {
+        "id": "14",
+        "name": "$where操作符规则",
+        "description": "避免使用$where操作符",
+        "pattern": "^(?!.*\\$where).*$",
+        "message": "不推荐使用$where操作符，请使用$expr代替",
+        "severity": "warning"
+      },
+      {
+        "id": "15",
+        "name": "remove方法规则",
+        "description": "避免使用已废弃的remove方法",
+        "pattern": "^(?!.*\\.remove\\().*$",
+        "message": "remove()方法已废弃，请使用deleteOne()或deleteMany()",
+        "severity": "error"
+      },
+      {
+        "id": "16",
+        "name": "update方法规则",
+        "description": "避免使用已废弃的update方法",
+        "pattern": "^(?!.*\\.update\\().*$",
+        "message": "update()方法已废弃，请使用updateOne()或updateMany()",
+        "severity": "error"
+      },
+      {
+        "id": "17",
+        "name": "索引使用规则",
+        "description": "查询应使用索引",
+        "pattern": "^(?!.*\\.find\\(\\{\\s*\\$text).*$",
+        "message": "全文搜索查询应确保有相应的文本索引",
+        "severity": "warning"
+      }
+    ]
+  }
+}

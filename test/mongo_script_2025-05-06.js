@@ -1,0 +1,9 @@
+db.mongo.updateOne({ id: "2" }, { $set: { "name": "李四" } });
+db.mongo.updateOne({ id: "3" }, { $set: { "name": "王五" } });
+db.mongo.updateOne({ id: "4" }, { $set: { "name": "赵六" } });
+db.mongo.updateOne({ id: "5" }, { $set: { "name": "钱七" } });
+db.mongo.updateOne({ id: "6" }, { $set: { "name": "孙八" } });
+db.mongo.updateOne({ id: "7" }, { $set: { "name": "周九" } });
+db.mongo.updateOne({ id: "8" }, { $set: { "name": "吴十" } });
+db.mongo.updateOne({ id: "9" }, { $set: { "name": "郑十一" } });
+db.mongo.updateOne({ id: "10" }, { $set: { "name": "王十二" } });

@@ -25,6 +25,7 @@ function ScriptGenerationPage() {
   const [csvData, setCsvData] = useState([]);
   const [headers, setHeaders] = useState([]);
   const [dbType, setDbType] = useState("MySQL");
+  const [operationType, setOperationType] = useState("UPDATE"); // 新增：操作类型
   const [fieldMappings, setFieldMappings] = useState({});
   const [conditionField, setConditionField] = useState("");
   const [updateFields, setUpdateFields] = useState([]);
@@ -85,35 +86,6 @@ function ScriptGenerationPage() {
       setHeaders(JSON.parse(savedHeaders));
     }
   };
-
-  // useEffect(() => {
-  //   // 加载保存的配置
-  //   const savedConfig = localStorage.getItem('dbConfig');
-  //   if (savedConfig) {
-  //     const parsedConfig = JSON.parse(savedConfig);
-  //     setConfig(parsedConfig);
-  //     setAvailableTables(Object.keys(parsedConfig));
-
-  //     // 检查是否有从配置页面选中的表
-  //     const selectedTableFromConfig = localStorage.getItem('selectedTable');
-  //     if (selectedTableFromConfig && parsedConfig[selectedTableFromConfig]) {
-  //       setSelectedTable(selectedTableFromConfig);
-
-  //       // 根据配置类型设置数据库类型
-  //       const tableType = localStorage.getItem('selectedTableType');
-
-  //       setDbType(tableType);
-  //     }
-  //   }
-
-  //   // 从localStorage加载CSV数据
-  //   const savedCsvData = localStorage.getItem('csvData');
-  //   const savedHeaders = localStorage.getItem('csvHeaders');
-  //   if (savedCsvData && savedHeaders) {
-  //     setCsvData(JSON.parse(savedCsvData));
-  //     setHeaders(JSON.parse(savedHeaders));
-  //   }
-  // }, []);
 
   const selectCsvFile = async () => {
     try {
@@ -205,6 +177,20 @@ function ScriptGenerationPage() {
     }
   };
 
+  // 处理操作类型变更
+  const handleOperationTypeChange = (value) => {
+    setOperationType(value);
+    // 如果切换到INSERT，不需要条件字段和更新字段
+    if (value === "INSERT") {
+      setConditionField("");
+      setUpdateFields([]);
+    }
+    // 如果切换到DELETE，只需要条件字段，不需要更新字段
+    else if (value === "DELETE") {
+      setUpdateFields([]);
+    }
+  };
+
   const handleFieldMapping = (csvField, dbField, csvIndex) => {
     setFieldMappings({
       ...fieldMappings,
@@ -227,28 +213,63 @@ function ScriptGenerationPage() {
     // 生成数据库脚本
     try {
       if (dbType === "MongoDB") {
-        console.log("MongoDB", "param", csvData, fieldMappings, conditionField, updateFields, selectedTable);
-        const result = await invoke("generate_mongodb_script", {
-          csvData,
-          fieldMappings,
-          conditionField,
-          updateFields,
-          tableName: selectedTable
-        });
-        console.log(result, "MongoDB", "result");
-        setScript(result);
-        setEditableScript(result); // 设置可编辑脚本的初始值
-      } else {
-        const result = await invoke("generate_mysql_script", {
-          csvData,
-          fieldMappings,
-          conditionField,
-          updateFields,
-          tableName: selectedTable
-        });
-        console.log(result, "MySQL", "result");
-        setScript(result);
-        setEditableScript(result); // 设置可编辑脚本的初始值
+        if (operationType === "UPDATE") {
+          const result = await invoke("generate_mongodb_script", {
+            csvData,
+            fieldMappings,
+            conditionField,
+            updateFields,
+            tableName: selectedTable
+          });
+          setScript(result);
+          setEditableScript(result);
+        } else if (operationType === "INSERT") {
+          const result = await invoke("generate_mongodb_insert_script", {
+            csvData,
+            fieldMappings,
+            tableName: selectedTable
+          });
+          setScript(result);
+          setEditableScript(result);
+        } else if (operationType === "DELETE") {
+          const result = await invoke("generate_mongodb_delete_script", {
+            csvData,
+            fieldMappings,
+            conditionField,
+            tableName: selectedTable
+          });
+          setScript(result);
+          setEditableScript(result);
+        }
+      } else { // MySQL
+        if (operationType === "UPDATE") {
+          const result = await invoke("generate_mysql_script", {
+            csvData,
+            fieldMappings,
+            conditionField,
+            updateFields,
+            tableName: selectedTable
+          });
+          setScript(result);
+          setEditableScript(result);
+        } else if (operationType === "INSERT") {
+          const result = await invoke("generate_mysql_insert_script", {
+            csvData,
+            fieldMappings,
+            tableName: selectedTable
+          });
+          setScript(result);
+          setEditableScript(result);
+        } else if (operationType === "DELETE") {
+          const result = await invoke("generate_mysql_delete_script", {
+            csvData,
+            fieldMappings,
+            conditionField,
+            tableName: selectedTable
+          });
+          setScript(result);
+          setEditableScript(result);
+        }
       }
       message.success('脚本生成成功');
     } catch (error) {
@@ -337,7 +358,7 @@ function ScriptGenerationPage() {
         </Select>
       ),
     },
-    {
+    (operationType !== "INSERT" ? {
       title: '条件字段',
       dataIndex: 'condition',
       key: 'condition',
@@ -349,8 +370,8 @@ function ScriptGenerationPage() {
           disabled={!fieldMappings[record.csvField]?.dbField}
         />
       ),
-    },
-    {
+    } : {}),
+    (operationType === "UPDATE" ? {
       title: '更新字段',
       dataIndex: 'update',
       key: 'update',
@@ -362,8 +383,24 @@ function ScriptGenerationPage() {
           disabled={!fieldMappings[record.csvField]?.dbField || fieldMappings[record.csvField]?.dbField === conditionField}
         />
       ),
-    },
+    } : {}),
   ];
+
+  // 根据操作类型确定生成按钮是否禁用
+  const isGenerateButtonDisabled = () => {
+    if (!selectedTable) return true;
+
+    // 检查是否有字段映射
+    const hasMappings = Object.keys(fieldMappings).length > 0;
+
+    if (operationType === "INSERT") {
+      return !hasMappings;
+    } else if (operationType === "DELETE") {
+      return !conditionField;
+    } else { // UPDATE
+      return !conditionField || updateFields.length === 0;
+    }
+  };
 
   // 根据数据库类型筛选可用的表
   const filteredTables = availableTables.filter(tableName => {
@@ -414,8 +451,6 @@ function ScriptGenerationPage() {
 
         <Space direction="vertical" style={{ width: '100%' }}>
           <Space direction="vertical" style={{ width: '100%' }}>
-
-
             <div style={{ marginBottom: '10px' }}>
               <span style={{ display: 'inline-block', width: '100px' }}>数据库类型：</span>
               <Select
@@ -425,6 +460,19 @@ function ScriptGenerationPage() {
               >
                 <Option value="MongoDB">MongoDB</Option>
                 <Option value="MySQL">MySQL</Option>
+              </Select>
+            </div>
+
+            <div style={{ marginBottom: '10px' }}>
+              <span style={{ display: 'inline-block', width: '100px' }}>操作类型：</span>
+              <Select
+                style={{ width: 200 }}
+                value={operationType}
+                onChange={handleOperationTypeChange}
+              >
+                <Option value="UPDATE">UPDATE (更新)</Option>
+                <Option value="INSERT">INSERT (插入)</Option>
+                <Option value="DELETE">DELETE (删除)</Option>
               </Select>
             </div>
 
@@ -442,6 +490,7 @@ function ScriptGenerationPage() {
                 ))}
               </Select>
             </div>
+
             <div style={{ marginBottom: '10px' }}>
               <span style={{ display: 'inline-block', width: '100px' }}>CSV文件：</span>
               <Button
@@ -462,22 +511,7 @@ function ScriptGenerationPage() {
           </Space>
 
           {/* 显示导入的CSV数据 */}
-          {headers.length > 0 && csvData.length > 0 && (
-            <Card
-              title="导入的CSV数据"
-              style={{ marginTop: 16 }}
-              className="csv-data-card"
-            >
-              <Table
-                columns={csvColumns}
-                dataSource={csvTableData}
-                pagination={false}
-                size="small"
-                bordered
-                scroll={{ x: 'max-content', y: 300 }}
-              />
-            </Card>
-          )}
+          {/* ... existing code ... */}
 
           {selectedTable && headers.length > 0 && (
             <Card
@@ -496,11 +530,11 @@ function ScriptGenerationPage() {
               <Button
                 type="primary"
                 onClick={generateScript}
-                disabled={!selectedTable || !conditionField || updateFields.length === 0}
+                disabled={isGenerateButtonDisabled()}
                 style={{ marginTop: 16 }}
                 icon={<CodeOutlined />}
               >
-                生成脚本
+                生成{operationType === "UPDATE" ? "更新" : operationType === "INSERT" ? "插入" : "删除"}脚本
               </Button>
             </Card>
           )}
@@ -539,6 +573,7 @@ function ScriptGenerationPage() {
               </Space>
             </Card>
           )}
+
         </Space>
       </Card>
     </div>

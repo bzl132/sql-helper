@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.aliyun.fsi.insurance.biz.proposal.infrastructure.repository.mapper.ProposalRelationPOMapper">
+  <resultMap id="BaseResultMap" type="com.aliyun.fsi.insurance.biz.proposal.infrastructure.repository.dataobject.ProposalRelationPO">
+    <result column="proposal_no" jdbcType="VARCHAR" property="proposalNo" />
+    <result column="under_writing" jdbcType="VARCHAR" property="underWriting" />
+    <result column="participant_info" jdbcType="VARCHAR" property="participantInfo" />
+    <result column="partner" jdbcType="VARCHAR" property="partner" />
+    <result column="scheme_plan" jdbcType="VARCHAR" property="schemePlan" />
+    <result column="subject_info" jdbcType="VARCHAR" property="subjectInfo" />
+    <result column="subject_group_info" jdbcType="VARCHAR" property="subjectGroupInfo" />
+    <result column="special_terms_and_condition" jdbcType="VARCHAR" property="specialTerm" />
+    <result column="co_insurance" jdbcType="VARCHAR" property="coInsurance" />
+    <result column="union_insurance" jdbcType="VARCHAR" property="unionInsurance" />
+    <result column="reinsurance" jdbcType="VARCHAR" property="reinsurance" />
+    <result column="third_internet_company" jdbcType="VARCHAR" property="thirdInternetCompany" />
+    <result column="facultative_reinsurance_in" jdbcType="VARCHAR" property="facultativeReinsuranceIn" />
+    <result column="exclusive" jdbcType="VARCHAR" property="exclusive" />
+    <result column="creator" jdbcType="VARCHAR" property="creator" />
+    <result column="modifier" jdbcType="VARCHAR" property="modifier" />
+    <result column="gmt_create" jdbcType="TIMESTAMP" property="gmtCreate" />
+    <result column="gmt_modified" jdbcType="TIMESTAMP" property="gmtModified" />
+    <result column="tenant_code" jdbcType="VARCHAR" property="tenantCode" />
+    <result column="is_valid" jdbcType="INTEGER" property="isValid" />
+    <result column="risk_survey" jdbcType="VARCHAR" property="riskSurvey" />
+    <result column="clause_info" jdbcType="VARCHAR" property="clauseInfo" />
+  </resultMap>
+
+  <sql id="columns">
+      proposal_no, under_writing, participant_info, partner, scheme_plan,
+      subject_info, subject_group_info, special_terms_and_condition,
+      co_insurance, union_insurance, reinsurance,
+      third_internet_company,facultative_reinsurance_in, exclusive, creator,
+      modifier, gmt_create, gmt_modified,
+      tenant_code, is_valid,risk_survey,
+      clause_info
+  </sql>
+
+  <sql id="columnValue">
+   #{proposalNo,jdbcType=VARCHAR}, #{underWriting,jdbcType=VARCHAR}, #{participantInfo,jdbcType=VARCHAR},
+      #{partner,jdbcType=VARCHAR}, #{schemePlan,jdbcType=VARCHAR},
+      #{subjectInfo,jdbcType=VARCHAR}, #{subjectGroupInfo,jdbcType=VARCHAR}, #{specialTerm,jdbcType=VARCHAR},
+      #{coInsurance,jdbcType=VARCHAR}, #{unionInsurance,jdbcType=VARCHAR}, #{reinsurance,jdbcType=VARCHAR},
+      #{thirdInternetCompany,jdbcType=VARCHAR},#{facultativeReinsuranceIn,jdbcType=VARCHAR},#{exclusive,jdbcType=VARCHAR},
+      #{creator,jdbcType=VARCHAR},
+      #{modifier,jdbcType=VARCHAR}, #{gmtCreate,jdbcType=TIMESTAMP}, #{gmtModified,jdbcType=TIMESTAMP},
+      #{tenantCode,jdbcType=VARCHAR}, #{isValid,jdbcType=INTEGER}, #{riskSurvey, jdbcType=VARCHAR},
+      #{clauseInfo,jdbcType=VARCHAR}
+  </sql>
+
+  <insert id="insert" parameterType="com.aliyun.fsi.insurance.biz.proposal.infrastructure.repository.dataobject.ProposalRelationPO">
+    insert into t_ply_proposal_relation (<include refid="columns"/>)
+    values (<include refid="columnValue"/>)
+  </insert>
+
+  <update id="update" parameterType="com.aliyun.fsi.insurance.biz.proposal.infrastructure.repository.dataobject.ProposalRelationPO">
+    UPDATE t_ply_proposal_relation set
+        <if test="underWriting != null">
+          under_writing = #{underWriting,jdbcType=VARCHAR},
+        </if>
+        participant_info = #{participantInfo,jdbcType=VARCHAR},
+        partner = #{partner,jdbcType=VARCHAR},
+        scheme_plan = #{schemePlan,jdbcType=VARCHAR},
+        subject_info = #{subjectInfo,jdbcType=VARCHAR},
+        subject_group_info = #{subjectGroupInfo,jdbcType=VARCHAR},
+        special_terms_and_condition = #{specialTerm,jdbcType=VARCHAR},
+        co_insurance = #{coInsurance,jdbcType=VARCHAR},
+        union_insurance = #{unionInsurance,jdbcType=VARCHAR},
+        reinsurance = #{reinsurance,jdbcType=VARCHAR},
+        third_internet_company=#{thirdInternetCompany,jdbcType=VARCHAR},
+        facultative_reinsurance_in=#{facultativeReinsuranceIn,jdbcType=VARCHAR},
+        exclusive = #{exclusive,jdbcType=VARCHAR},
+        modifier = #{modifier,jdbcType=VARCHAR},
+        <if test="isValid != '' and isValid != null">
+            is_valid=#{isValid,jdbcType=INTEGER},
+        </if>
+      risk_survey = #{riskSurvey,jdbcType=VARCHAR},
+        gmt_modified = now(3),
+      clause_info = #{clauseInfo,jdbcType=VARCHAR}
+    WHERE proposal_no = #{proposalNo}
+  </update>
+
+  <select id="selectByProposalNo" resultMap="BaseResultMap" parameterType="java.lang.String">
+    select <include refid="columns"/>
+    from t_ply_proposal_relation
+    Where proposal_no = #{proposalNo}
+  </select>
+
+    <select id="batchQueryByProposalNos" resultMap="BaseResultMap">
+        select
+        <include refid="columns"/>
+        from t_ply_proposal_relation
+        where proposal_no in
+        <foreach collection="proposalNoList" index="index" item="item" open="(" separator="," close=")">
+            #{item}
+        </foreach>
+    </select>
+
+  <select id="selectCountByProposalNo" resultType="int" parameterType="java.lang.String">
+    select count(1)
+    from t_ply_proposal_relation
+    Where proposal_no = #{proposalNo}
+  </select>
+
+  <select id="selectUnderwriting" resultType="java.lang.String">
+    select under_writing
+    from t_ply_proposal_relation
+    where proposal_no = #{proposalNo};
+  </select>
+
+    <update id="updateValidByProposalNo" parameterType="com.aliyun.fsi.insurance.biz.proposal.infrastructure.repository.dataobject.ProposalRelationPO">
+        update t_ply_proposal_relation set
+        <if test="isValid != null">
+            is_valid=#{isValid,jdbcType=INTEGER},
+        </if>
+        modifier = #{modifier,jdbcType=VARCHAR},
+        gmt_modified = now(3)
+        where proposal_no = #{proposalNo}
+    </update>
+
+    <update id="updateRiskSurvey">
+        UPDATE t_ply_proposal_relation
+        set
+            risk_survey = #{riskSurvey,jdbcType=VARCHAR},
+            gmt_modified = now(3)
+        WHERE proposal_no= #{proposalNo}
+    </update>
+</mapper>

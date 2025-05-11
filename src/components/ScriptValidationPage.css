@@ -1,0 +1,28 @@
+.error-row {
+  background-color: #fff1f0;
+}
+
+.ant-table-row.error-row:hover > td {
+  background-color: #ffccc7 !important;
+}
+
+.rules-manager-container {
+    border-radius: 4px;
+    transition: all 0.3s;
+}
+
+.rules-manager-container .ant-card-head {
+    min-height: 40px;
+}
+
+.rules-manager-container .ant-card-head-title {
+    padding: 8px 0;
+}
+
+.rules-manager-container .ant-card-extra {
+    padding: 8px 0;
+}
+
+.rules-manager-container .ant-tabs-nav {
+    margin-bottom: 8px;
+}

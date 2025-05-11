@@ -117,9 +117,9 @@ fn generate_mongodb_script(
     }
 
     println!(
-        "generate_mongodb_script end : {}, script length: {}",
+        "generate_mongodb_script end : {}, script length: {:?}",
         table_name,
-        script.len()
+        script
     );
     Ok(script)
 }
@@ -197,6 +197,224 @@ fn generate_mysql_script(
     Ok(script)
 }
 
+
+#[tauri::command]
+fn generate_mongodb_insert_script(
+    csv_data: Vec<Vec<String>>,
+    field_mappings: HashMap<String, FieldMappingInfo>,
+    table_name: String,
+) -> Result<String, String> {
+    println!(
+        "generate_mongodb_insert_script start : {}, {:?}",
+        table_name, field_mappings
+    );
+    let mut script = String::new();
+
+    // 检查CSV数据是否为空
+    if csv_data.is_empty() || csv_data.len() <= 1 {
+        return Ok(script);
+    }
+
+    // 为每一行 CSV 数据生成一个 MongoDB 插入语句
+    for row in &csv_data {
+        let mut insert_values = HashMap::new();
+
+        // 遍历字段映射
+        for (_, mapping_info) in &field_mappings {
+            let csv_index = mapping_info.csv_index;
+            let db_field = &mapping_info.db_field;
+
+            // 确保索引在有效范围内
+            if csv_index < row.len() {
+                let value = &row[csv_index];
+                insert_values.insert(db_field.clone(), value.to_string());
+            }
+        }
+
+        // 生成 MongoDB 插入语句
+        if !insert_values.is_empty() {
+            script.push_str(&format!("db.{}.insertOne({{ ", table_name));
+
+            let mut first = true;
+            for (field, value) in &insert_values {
+                if !first {
+                    script.push_str(", ");
+                }
+                script.push_str(&format!("\"{}\": \"{}\"", field, value));
+                first = false;
+            }
+
+            script.push_str(" });\n");
+        }
+    }
+
+    println!(
+        "generate_mongodb_insert_script end : {}, script length: {}",
+        table_name,
+        script.len()
+    );
+    Ok(script)
+}
+
+#[tauri::command]
+fn generate_mongodb_delete_script(
+    csv_data: Vec<Vec<String>>,
+    field_mappings: HashMap<String, FieldMappingInfo>,
+    condition_field: String,
+    table_name: String,
+) -> Result<String, String> {
+    println!(
+        "generate_mongodb_delete_script start : {}, {:?}",
+        table_name, field_mappings
+    );
+    let mut script = String::new();
+
+    // 检查CSV数据是否为空
+    if csv_data.is_empty() || csv_data.len() <= 1 {
+        return Ok(script);
+    }
+
+    // 为每一行 CSV 数据生成一个 MongoDB 删除语句
+    for row in &csv_data {
+        let mut condition_value = String::new();
+
+        // 遍历字段映射
+        for (_, mapping_info) in &field_mappings {
+            let csv_index = mapping_info.csv_index;
+            let db_field = &mapping_info.db_field;
+
+            // 确保索引在有效范围内
+            if csv_index < row.len() && db_field == &condition_field {
+                let value = &row[csv_index];
+                condition_value = value.to_string();
+                break;
+            }
+        }
+
+        // 生成 MongoDB 删除语句
+        if !condition_value.is_empty() {
+            script.push_str(&format!(
+                "db.{}.deleteOne({{ {}: \"{}\" }});\n",
+                table_name, condition_field, condition_value
+            ));
+        }
+    }
+
+    println!(
+        "generate_mongodb_delete_script end : {}, script length: {}",
+        table_name,
+        script.len()
+    );
+    Ok(script)
+}
+
+#[tauri::command]
+fn generate_mysql_insert_script(
+    csv_data: Vec<Vec<String>>,
+    field_mappings: HashMap<String, FieldMappingInfo>,
+    table_name: String,
+) -> Result<String, String> {
+    println!(
+        "generate_mysql_insert_script start : {}, {:?}",
+        table_name, field_mappings
+    );
+    let mut script = String::new();
+
+    // 检查CSV数据是否为空
+    if csv_data.is_empty() || csv_data.len() <= 1 {
+        return Ok(script);
+    }
+
+    // 为每一行 CSV 数据生成一个 MySQL 插入语句
+    for row in &csv_data {
+        let mut fields = Vec::new();
+        let mut values = Vec::new();
+
+        // 遍历字段映射
+        for (_, mapping_info) in &field_mappings {
+            let csv_index = mapping_info.csv_index;
+            let db_field = &mapping_info.db_field;
+
+            // 确保索引在有效范围内
+            if csv_index < row.len() {
+                let value = &row[csv_index];
+                fields.push(db_field.clone());
+                values.push(format!("'{}'", value));
+            }
+        }
+
+        // 生成 MySQL 插入语句
+        if !fields.is_empty() {
+            script.push_str(&format!(
+                "INSERT INTO {} ({}) VALUES ({});\n",
+                table_name,
+                fields.join(", "),
+                values.join(", ")
+            ));
+        }
+    }
+
+    println!(
+        "generate_mysql_insert_script end : {}, script length: {}",
+        table_name,
+        script.len()
+    );
+    Ok(script)
+}
+
+#[tauri::command]
+fn generate_mysql_delete_script(
+    csv_data: Vec<Vec<String>>,
+    field_mappings: HashMap<String, FieldMappingInfo>,
+    condition_field: String,
+    table_name: String,
+) -> Result<String, String> {
+    println!(
+        "generate_mysql_delete_script start : {}, {:?}",
+        table_name, field_mappings
+    );
+    let mut script = String::new();
+
+    // 检查CSV数据是否为空
+    if csv_data.is_empty() || csv_data.len() <= 1 {
+        return Ok(script);
+    }
+
+    // 为每一行 CSV 数据生成一个 MySQL 删除语句
+    for row in &csv_data {
+        let mut condition_value = String::new();
+
+        // 遍历字段映射
+        for (_, mapping_info) in &field_mappings {
+            let csv_index = mapping_info.csv_index;
+            let db_field = &mapping_info.db_field;
+
+            // 确保索引在有效范围内
+            if csv_index < row.len() && db_field == &condition_field {
+                let value = &row[csv_index];
+                condition_value = value.to_string();
+                break;
+            }
+        }
+
+        // 生成 MySQL 删除语句
+        if !condition_value.is_empty() {
+            script.push_str(&format!(
+                "DELETE FROM {} WHERE {} = '{}';\n",
+                table_name, condition_field, condition_value
+            ));
+        }
+    }
+
+    println!(
+        "generate_mysql_delete_script end : {}, script length: {}",
+        table_name,
+        script.len()
+    );
+    Ok(script)
+}
+
+
 fn read_file(file_path: &str) -> io::Result<String> {
     let mut file = File::open(file_path)?;
     let mut content = String::new();
@@ -248,7 +466,11 @@ pub fn run() {
             read_mybatis_file,
             read_csv_file,
             generate_mongodb_script,
-            generate_mysql_script
+            generate_mysql_script,
+            generate_mongodb_insert_script,
+            generate_mongodb_delete_script,
+            generate_mysql_insert_script,
+            generate_mysql_delete_script
         ])
         .setup(|app| {
             let window = app.get_webview_window("main").unwrap();
