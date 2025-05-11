@@ -15,6 +15,7 @@ import {
 import { FileOutlined, DownloadOutlined, UploadOutlined, PlusOutlined } from '@ant-design/icons';
 import { readTextFile, writeTextFile, mkdir, exists, create } from "@tauri-apps/plugin-fs";
 import { dirname, appDataDir } from '@tauri-apps/api/path';
+import { open } from '@tauri-apps/plugin-dialog';
 
 const { Title, Text } = Typography;
 
@@ -33,6 +34,10 @@ function ConfigPage() {
   // 配置文件路径 - 不要使用硬编码的路径
   const [configFilePath, setConfigFilePath] = useState("");
   const [configFileDir, setConfigFileDir] = useState("");
+
+  // 添加属性列表弹窗状态
+  const [isFieldsModalVisible, setIsFieldsModalVisible] = useState(false);
+  const [currentFields, setCurrentFields] = useState([]);
 
   // 添加一个状态来跟踪是否已经显示过配置文件不存在的提示
   const [configWarningShown, setConfigWarningShown] = useState(false);
@@ -107,42 +112,66 @@ function ConfigPage() {
 
   const selectJavaFile = async () => {
     try {
-      // 创建一个隐藏的文件输入元素
-      const fileInput = document.createElement('input');
-      fileInput.type = 'file';
-      fileInput.accept = '.java';
+      // 使用Tauri的open对话框API选择文件
+      const selected = await open({
+        read: false,
+        multiple: false,
+        filters: [{
+          name: 'Java文件',
+          extensions: ['java']
+        }]
+      });
 
-      fileInput.onchange = async (e) => {
-        const file = e.target.files[0];
-        if (file) {
-          // 处理选择的文件
-          const reader = new FileReader();
-          reader.onload = async (event) => {
+      if (selected) {
+        // selected是完整的文件路径
+        const filePath = selected;
+        const fileName = filePath.split(/[\/\\]/).pop();
+        const fileDir = filePath.substring(0, filePath.lastIndexOf('/') + 1);
 
-            const content = event.target.result;
+        // 读取文件内容
+        const content = await readTextFile(filePath);
 
-            // 解析 Java 文件内容，提取字段
-            const extractedFields = parseJavaFields(content);
+        // 解析Java文件内容，提取字段和继承关系
+        const { extractedFields, parentClass } = parseJavaClassWithInheritance(content);
 
-            setFields(extractedFields);
-
-            message.success('Java文件解析成功');
-          };
-          reader.readAsText(file);
+        // 如果有父类，尝试加载父类属性
+        let allFields = [...extractedFields];
+        if (parentClass) {
+          try {
+            console.log("selectJavaFile, loadParentClassFields", fileDir, filePath, fileName);
+            const parentFields = await loadParentClassFields(parentClass, fileDir);
+            // 合并字段，确保不重复
+            allFields = mergeFields(allFields, parentFields);
+            message.success(`已加载父类 ${parentClass} 的属性`);
+          } catch (error) {
+            console.error('加载父类属性时出错:', error);
+            message.warning(`无法加载父类 ${parentClass} 的属性: ${error.message}`);
+          }
         }
-      };
 
-      fileInput.click();
+        setFields(allFields);
+        message.success('Java文件解析成功');
+      }
     } catch (error) {
       console.error('选择或解析Java文件时出错:', error);
       message.error(`选择或解析Java文件时出错: ${error.message}`);
     }
   };
 
-  // 解析 Java 文件中的字段
-  const parseJavaFields = (content) => {
+  // 解析 Java 文件中的字段和继承关系
+  const parseJavaClassWithInheritance = (content) => {
     const extractedFields = [];
+    let parentClass = null;
+
     try {
+      // 提取类的继承关系
+      const classDeclarationRegex = /class\s+(\w+)(?:\s+extends\s+(\w+))?(?:\s+implements\s+(?:[\w,\s]+))?/;
+      const classMatch = classDeclarationRegex.exec(content);
+
+      if (classMatch && classMatch[2]) {
+        parentClass = classMatch[2];
+      }
+
       // 使用正则表达式匹配 Java 类中的字段声明
       // 匹配 private、protected 或 public 修饰的字段
       const fieldRegex = /(?:private|protected|public)\s+(?:final\s+)?(\w+)(?:<.*?>)?\s+(\w+)\s*;/g;
@@ -151,10 +180,14 @@ function ConfigPage() {
         // match[1] 是字段类型，match[2] 是字段名
         const fieldType = match[1];
         const fieldName = match[2];
-        extractedFields.push({
-          name: fieldName,
-          type: fieldType
-        });
+
+        // 排除class属性
+        if (fieldName !== "class") {
+          extractedFields.push({
+            name: fieldName,
+            type: fieldType
+          });
+        }
       }
 
       // 也可以匹配带有注解的字段
@@ -163,19 +196,121 @@ function ConfigPage() {
       while ((match = annotatedFieldRegex.exec(content)) !== null) {
         const fieldType = match[1];
         const fieldName = match[2];
-        const existingField = extractedFields.find(f => f.name === fieldName);
-        if (!existingField) {
-          extractedFields.push({
-            name: fieldName,
-            type: fieldType
-          });
+
+        // 排除class属性
+        if (fieldName !== "class") {
+          const existingField = extractedFields.find(f => f.name === fieldName);
+          if (!existingField) {
+            extractedFields.push({
+              name: fieldName,
+              type: fieldType
+            });
+          }
         }
       }
     } catch (error) {
       console.error('解析 Java 字段时出错:', error);
     }
 
-    return extractedFields;
+    return { extractedFields, parentClass };
+  };
+
+  // 加载父类的字段
+  const loadParentClassFields = async (parentClassName, currentDir) => {
+    try {
+      // 尝试在当前目录和子目录中查找父类文件
+      const parentFile = await findParentClassFile(parentClassName, currentDir);
+
+      if (!parentFile) {
+        throw new Error(`找不到父类 ${parentClassName} 的文件`);
+      }
+
+      // 读取父类文件内容
+      const parentContent = await readTextFile(parentFile);
+
+      // 解析父类文件，提取字段
+      const { extractedFields, parentClass: grandParentClass } = parseJavaClassWithInheritance(parentContent);
+
+      // 如果父类也有父类，递归加载祖父类的字段
+      let allParentFields = [...extractedFields];
+      if (grandParentClass) {
+        try {
+          // 获取父类文件所在目录
+          const parentFileDir = parentFile.substring(0, parentFile.lastIndexOf('/') + 1);
+          console.log("loadParentClassFields", parentFileDir);
+          const grandParentFields = await loadParentClassFields(grandParentClass, parentFileDir);
+          allParentFields = mergeFields(allParentFields, grandParentFields);
+        } catch (error) {
+          console.warn(`无法加载祖父类 ${grandParentClass} 的属性:`, error);
+        }
+      }
+
+      return allParentFields;
+    } catch (error) {
+      console.error('加载父类字段时出错:', error);
+      throw error;
+    }
+  };
+
+  // 查找父类文件
+  const findParentClassFile = async (parentClassName, currentDir) => {
+    try {
+      // 不再尝试直接访问文件系统中的路径
+      // 而是提示用户手动选择父类文件
+      message.info(`请选择父类 ${parentClassName}.java 文件`);
+
+      const selected = await open({
+        multiple: false,
+        filters: [{
+          name: 'Java文件',
+          extensions: ['java']
+        }]
+      });
+
+      if (selected) {
+        // 验证选择的文件是否是正确的父类文件
+        try {
+          const content = await readTextFile(selected);
+
+          // 简单验证文件内容是否包含正确的类名
+          const classNameRegex = new RegExp(`class\\s+${parentClassName}\\b`);
+          if (classNameRegex.test(content)) {
+            return selected;
+          } else {
+            message.warning(`选择的文件不是 ${parentClassName} 类，请重新选择`);
+            // 递归调用，让用户重新选择
+            return findParentClassFile(parentClassName, currentDir);
+          }
+        } catch (error) {
+          console.error('读取选择的文件失败:', error);
+          message.error(`无法读取选择的文件: ${error.message}`);
+          return null;
+        }
+      } else {
+        // 用户取消了选择
+        message.warning(`未选择父类 ${parentClassName} 文件，将只加载当前类的属性`);
+        return null;
+      }
+    } catch (error) {
+      console.error('查找父类文件时出错:', error);
+      message.error(`查找父类文件时出错: ${error.message}`);
+      return null;
+    }
+  };
+
+  // 合并字段，确保不重复
+  const mergeFields = (baseFields, additionalFields) => {
+    const mergedFields = [...baseFields];
+
+    additionalFields.forEach(field => {
+      // 检查字段是否已存在
+      const exists = mergedFields.some(f => f.name === field.name);
+      if (!exists) {
+        mergedFields.push(field);
+      }
+    });
+
+    return mergedFields;
   };
 
   const selectMybatisFile = async () => {
@@ -468,6 +603,66 @@ function ConfigPage() {
     setIsModalVisible(false);
   };
 
+
+  // 查看表的属性
+  const viewTableFields = (tableName) => {
+    if (config[tableName] && config[tableName].fields) {
+      setCurrentFields(config[tableName].fields);
+      setIsFieldsModalVisible(true);
+    } else {
+      message.warning(`表 ${tableName} 没有定义字段`);
+    }
+  };
+
+
+  // 已导入的配置表格列定义
+  const columns = [
+    {
+      title: '配置名称',
+      dataIndex: 'name',
+      key: 'name',
+    },
+    {
+      title: '类型',
+      dataIndex: 'type',
+      key: 'type',
+      render: (text) => <Tag color={text === 'java' ? 'blue' : text === 'mybatis' ? 'green' : 'orange'}>{text}</Tag>,
+    },
+    {
+      title: '字段数量',
+      dataIndex: 'fieldCount',
+      key: 'fieldCount',
+    },
+    {
+      title: '操作',
+      key: 'action',
+      render: (_, record) => (
+        <Space size="small">
+          <Button
+            size="small"
+            onClick={() => handleSelectTable(record.name)}
+          >
+            选择
+          </Button>
+          <Button
+            size="small"
+            onClick={() => viewTableFields(record.name)}
+          >
+            查看属性
+          </Button>
+          <Button
+            size="small"
+            danger
+            onClick={() => handleDeleteConfig(record.name)}
+          >
+            删除
+          </Button>
+        </Space>
+      ),
+    },
+  ];
+
+
   return (
     <div className="config-page">
       <Card>
@@ -552,6 +747,12 @@ function ConfigPage() {
                         </Button>
                         <Button
                           size="small"
+                          onClick={() => viewTableFields(tableName)}
+                        >
+                          查看属性
+                        </Button>
+                        <Button
+                          size="small"
                           danger
                           onClick={() => {
                             Modal.confirm({
@@ -586,6 +787,37 @@ function ConfigPage() {
           </table>
         </div>
       </Card>
+
+
+      {/* 属性查看弹窗 */}
+      <Modal
+        title="表字段属性"
+        open={isFieldsModalVisible}
+        onCancel={() => setIsFieldsModalVisible(false)}
+        footer={[
+          <Button key="close" onClick={() => setIsFieldsModalVisible(false)}>
+            关闭
+          </Button>
+        ]}
+        width={600}
+      >
+        <div style={{ maxHeight: '400px', overflow: 'auto' }}>
+          {currentFields.map((field, index) => (
+            <Card key={index} style={{ marginBottom: '8px' }}>
+              {typeof field === 'object' ? (
+                <div>
+                  <strong>字段名:</strong> {field.name}<br />
+                  <strong>类型:</strong> {field.type}
+                </div>
+              ) : (
+                <div>
+                  <strong>字段名:</strong> {field}
+                </div>
+              )}
+            </Card>
+          ))}
+        </div>
+      </Modal>
 
       {/* 新增配置弹窗 */}
       <Modal
@@ -638,15 +870,15 @@ function ConfigPage() {
               >
                 {fields.length > 0 ? (
                   <div style={{ marginTop: 16 }}>
-                  <Title level={5}>已导入字段</Title>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                    {fields.map((field, index) => (
-                      <Tag key={index}>
-                        {typeof field === 'object' ? `${field.name} (${field.type})` : field}
-                      </Tag>
-                    ))}
+                    <Title level={5}>已导入字段</Title>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                      {fields.map((field, index) => (
+                        <Tag key={index}>
+                          {typeof field === 'object' ? `${field.name} (${field.type})` : field}
+                        </Tag>
+                      ))}
+                    </div>
                   </div>
-                </div>
                 ) : (
                   <Text type="secondary">暂无字段，请选择Java文件</Text>
                 )}
@@ -671,15 +903,15 @@ function ConfigPage() {
               >
                 {fields.length > 0 ? (
                   <div style={{ marginTop: 16 }}>
-                  <Title level={5}>已导入字段</Title>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                    {fields.map((field, index) => (
-                      <Tag key={index}>
-                        {typeof field === 'object' ? `${field.name} (${field.type})` : field}
-                      </Tag>
-                    ))}
+                    <Title level={5}>已导入字段</Title>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                      {fields.map((field, index) => (
+                        <Tag key={index}>
+                          {typeof field === 'object' ? `${field.name} (${field.type})` : field}
+                        </Tag>
+                      ))}
+                    </div>
                   </div>
-                </div>
                 ) : (
                   <Text type="secondary">暂无字段，请选择MyBatis文件</Text>
                 )}
