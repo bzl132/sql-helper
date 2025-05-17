@@ -10,19 +10,18 @@ import {
   Tag,
   Modal,
   Radio,
-  Alert
+  Alert,
+  Table  // 添加Table组件导入
 } from 'antd';
 import { FileOutlined, DownloadOutlined, UploadOutlined, PlusOutlined } from '@ant-design/icons';
 import { readTextFile, writeTextFile, mkdir, exists, create } from "@tauri-apps/plugin-fs";
 import { dirname, appDataDir } from '@tauri-apps/api/path';
 import { open } from '@tauri-apps/plugin-dialog';
 
-const { Title, Text } = Typography;
+const { Title } = Typography;
 
 function ConfigPage() {
   const [fields, setFields] = useState([]);
-  // 移除 mysqlFields 状态
-  // const [mysqlFields, setMysqlFields] = useState([]);
   const [selectedTable, setSelectedTable] = useState("");
   const [config, setConfig] = useState({});
 
@@ -38,6 +37,10 @@ function ConfigPage() {
   // 添加属性列表弹窗状态
   const [isFieldsModalVisible, setIsFieldsModalVisible] = useState(false);
   const [currentFields, setCurrentFields] = useState([]);
+  // 添加编辑模式状态
+  const [editMode, setEditMode] = useState(false);
+  // 添加当前编辑的表名
+  const [editingTable, setEditingTable] = useState("");
 
   // 添加一个状态来跟踪是否已经显示过配置文件不存在的提示
   const [configWarningShown, setConfigWarningShown] = useState(false);
@@ -609,9 +612,95 @@ function ConfigPage() {
     if (config[tableName] && config[tableName].fields) {
       setCurrentFields(config[tableName].fields);
       setIsFieldsModalVisible(true);
+      setEditMode(false); // 设置为非编辑模式
     } else {
       message.warning(`表 ${tableName} 没有定义字段`);
     }
+  };
+
+  // 编辑表的属性
+  const editTableFields = (tableName) => {
+    if (config[tableName] && config[tableName].fields) {
+      // 将字段转换为统一格式
+      const fields = config[tableName].fields.map(field => {
+        if (typeof field === 'string') {
+          return { name: field, type: '' };
+        }
+        return field;
+      });
+      
+      setCurrentFields(fields);
+      setEditingTable(tableName);
+      setIsFieldsModalVisible(true);
+      setEditMode(true); // 设置为编辑模式
+    } else {
+      message.warning(`表 ${tableName} 没有定义字段`);
+    }
+  };
+
+  // 删除配置
+  const deleteConfig = (tableName) => {
+    Modal.confirm({
+      title: '确认删除',
+      content: `确定要删除配置 "${tableName}" 吗？此操作不可恢复。`,
+      okText: '确认',
+      cancelText: '取消',
+      onOk: () => {
+        // 创建新的配置对象，排除要删除的配置
+        const newConfig = { ...config };
+        delete newConfig[tableName];
+        
+        // 更新状态和本地存储
+        setConfig(newConfig);
+        localStorage.setItem('dbConfig', JSON.stringify(newConfig));
+        
+        message.success(`配置 "${tableName}" 已删除`);
+      }
+    });
+  };
+
+  // 添加字段
+  const addField = () => {
+    setCurrentFields([...currentFields, { name: '', type: '' }]);
+  };
+
+  // 更新字段
+  const updateField = (index, key, value) => {
+    const newFields = [...currentFields];
+    newFields[index] = { ...newFields[index], [key]: value };
+    setCurrentFields(newFields);
+  };
+
+  // 删除字段
+  const removeField = (index) => {
+    const newFields = [...currentFields];
+    newFields.splice(index, 1);
+    setCurrentFields(newFields);
+  };
+
+  // 保存编辑后的字段
+  const saveFields = () => {
+    // 验证字段名不为空
+    const invalidFields = currentFields.filter(field => !field.name);
+    if (invalidFields.length > 0) {
+      message.error('字段名不能为空');
+      return;
+    }
+
+    // 更新配置
+    const newConfig = { ...config };
+    newConfig[editingTable] = {
+      ...newConfig[editingTable],
+      fields: currentFields
+    };
+
+    // 更新状态和本地存储
+    setConfig(newConfig);
+    localStorage.setItem('dbConfig', JSON.stringify(newConfig));
+
+    // 关闭弹窗
+    setIsFieldsModalVisible(false);
+    message.success('字段配置已保存');
   };
 
 
@@ -638,22 +727,25 @@ function ConfigPage() {
       key: 'action',
       render: (_, record) => (
         <Space size="small">
-          <Button
-            size="small"
-            onClick={() => handleSelectTable(record.name)}
-          >
-            选择
-          </Button>
-          <Button
-            size="small"
+          <Button 
+            type="link" 
+            size="small" 
             onClick={() => viewTableFields(record.name)}
           >
             查看属性
           </Button>
-          <Button
-            size="small"
-            danger
-            onClick={() => handleDeleteConfig(record.name)}
+          <Button 
+            type="link" 
+            size="small" 
+            onClick={() => editTableFields(record.name)}
+          >
+            编辑
+          </Button>
+          <Button 
+            type="link" 
+            danger 
+            size="small" 
+            onClick={() => deleteConfig(record.name)}
           >
             删除
           </Button>
@@ -663,11 +755,10 @@ function ConfigPage() {
   ];
 
 
+  // 在渲染部分，将原来的列表改为Table组件
   return (
     <div className="config-page">
-      <Card>
-        <Title level={2}>数据库表字段配置</Title>
-
+      <Card title="数据库配置" style={{ width: '100%' }}>
         <Space style={{ marginBottom: 16 }}>
           <Button
             type="primary"
@@ -697,228 +788,191 @@ function ConfigPage() {
           style={{ marginBottom: 16 }}
         />
 
-        {/* 添加配置表格 */}
-        <div style={{ marginBottom: 16 }}>
+        {/* 已导入的配置区域 */}
+        <div className="imported-configs">
           <Title level={4}>已导入的配置</Title>
-          <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 10 }}>
-            <thead>
-              <tr style={{ backgroundColor: '#f0f0f0' }}>
-                <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'left' }}>表名</th>
-                <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'left' }}>类型</th>
-                <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'left' }}>字段数</th>
-                <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'left' }}>字段内容</th>
-                <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'left' }}>操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              {Object.keys(config).length > 0 ? (
-                Object.keys(config).map((tableName) => (
-                  <tr key={tableName} style={{ borderBottom: '1px solid #ddd' }}>
-                    <td style={{ border: '1px solid #ddd', padding: '8px' }}>{tableName}</td>
-                    <td style={{ border: '1px solid #ddd', padding: '8px' }}>
-                      {config[tableName].type || "未知"}
-                    </td>
-                    <td style={{ border: '1px solid #ddd', padding: '8px' }}>
-                      {config[tableName].fields ? config[tableName].fields.length : 0}
-                    </td>
-                    <td style={{ border: '1px solid #ddd', padding: '8px', maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', maxHeight: '80px', overflowY: 'auto' }}>
-                        {config[tableName].fields && config[tableName].fields.map((field, index) => (
-                          <Tag key={index} color={config[tableName].type === "MongoDB" ? "blue" : "green"} style={{ margin: '2px' }}>
-                            {typeof field === 'object' ? `${field.name} (${field.type})` : field}
-                          </Tag>
-                        ))}
-                      </div>
-                    </td>
-                    <td style={{ border: '1px solid #ddd', padding: '8px' }}>
-                      <Space>
-                        <Button
-                          size="small"
-                          onClick={() => {
-                            setSelectedTable(tableName);
-                            setFields(config[tableName].fields || []);
-                            // 保存选中的表名和类型到localStorage，供脚本生成页面使用
-                            localStorage.setItem('selectedTable', tableName);
-                            localStorage.setItem('selectedTableType', config[tableName].type);
-                            message.success(`已选择配置: ${tableName}`);
-                          }}
-                        >
-                          选择
-                        </Button>
-                        <Button
-                          size="small"
-                          onClick={() => viewTableFields(tableName)}
-                        >
-                          查看属性
-                        </Button>
-                        <Button
-                          size="small"
-                          danger
-                          onClick={() => {
-                            Modal.confirm({
-                              title: '确认删除',
-                              content: `确定要删除配置 "${tableName}" 吗？`,
-                              okText: '删除',
-                              cancelText: '取消',
-                              onOk: () => {
-                                const newConfig = { ...config };
-                                delete newConfig[tableName];
-                                setConfig(newConfig);
-                                localStorage.setItem('dbConfig', JSON.stringify(newConfig));
-                                message.success(`配置 "${tableName}" 已删除`);
-                              }
-                            });
-                          }}
-                        >
-                          删除
-                        </Button>
-                      </Space>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="5" style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'center' }}>
-                    <Text type="secondary">暂无配置，请导入或新增配置</Text>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+          <Table 
+            columns={columns} 
+            dataSource={Object.keys(config).map(key => ({
+              key,
+              name: key,
+              type: config[key].type || 'unknown',
+              fieldCount: config[key].fields ? config[key].fields.length : 0
+            }))}
+            size="small"
+            pagination={false}
+          />
         </div>
+        
+        {/* 属性查看弹窗 */}
+        <Modal
+          title={editMode ? `编辑 "${editingTable}" 的字段` : "字段属性"}
+          open={isFieldsModalVisible}
+          onCancel={() => setIsFieldsModalVisible(false)}
+          footer={editMode ? [
+            <Button key="cancel" onClick={() => setIsFieldsModalVisible(false)}>
+              取消
+            </Button>,
+            <Button key="save" type="primary" onClick={saveFields}>
+              保存
+            </Button>
+          ] : [
+            <Button key="close" type="primary" onClick={() => setIsFieldsModalVisible(false)}>
+              关闭
+            </Button>
+          ]}
+          width={700}
+        >
+          {editMode ? (
+            <>
+              <Button 
+                type="primary" 
+                icon={<PlusOutlined />} 
+                onClick={addField}
+                style={{ marginBottom: 16 }}
+              >
+                添加字段
+              </Button>
+              <Table
+                dataSource={currentFields.map((field, index) => ({ ...field, key: index }))}
+                pagination={false}
+                bordered
+                size="small"
+                columns={[
+                  {
+                    title: '字段名',
+                    dataIndex: 'name',
+                    key: 'name',
+                    render: (text, record, index) => (
+                      <Input 
+                        value={text} 
+                        onChange={(e) => updateField(index, 'name', e.target.value)}
+                      />
+                    )
+                  },
+                  {
+                    title: '类型',
+                    dataIndex: 'type',
+                    key: 'type',
+                    render: (text, record, index) => (
+                      <Input 
+                        value={text || ''} 
+                        onChange={(e) => updateField(index, 'type', e.target.value)}
+                        placeholder="可选"
+                      />
+                    )
+                  },
+                  {
+                    title: '操作',
+                    key: 'action',
+                    render: (_, record, index) => (
+                      <Button 
+                        type="link" 
+                        danger 
+                        onClick={() => removeField(index)}
+                      >
+                        删除
+                      </Button>
+                    )
+                  }
+                ]}
+              />
+            </>
+          ) : (
+            <div className="fields-list">
+              {currentFields.map((field, index) => (
+                <Tag key={index} className="field-item">
+                  {typeof field === 'string' ? field : `${field.name}${field.type ? ` (${field.type})` : ''}`}
+                </Tag>
+              ))}
+            </div>
+          )}
+        </Modal>
       </Card>
-
-
-      {/* 属性查看弹窗 */}
+      
+      {/* 字段属性弹窗 */}
       <Modal
-        title="表字段属性"
+        title={editMode ? `编辑 "${editingTable}" 的字段` : "字段属性"}
         open={isFieldsModalVisible}
         onCancel={() => setIsFieldsModalVisible(false)}
-        footer={[
-          <Button key="close" onClick={() => setIsFieldsModalVisible(false)}>
-            关闭
-          </Button>
-        ]}
-        width={600}
-      >
-        <div style={{ maxHeight: '400px', overflow: 'auto' }}>
-          {currentFields.map((field, index) => (
-            <Card key={index} style={{ marginBottom: '8px' }}>
-              {typeof field === 'object' ? (
-                <div>
-                  <strong>字段名:</strong> {field.name}<br />
-                  <strong>类型:</strong> {field.type}
-                </div>
-              ) : (
-                <div>
-                  <strong>字段名:</strong> {field}
-                </div>
-              )}
-            </Card>
-          ))}
-        </div>
-      </Modal>
-
-      {/* 新增配置弹窗 */}
-      <Modal
-        title="新增配置"
-        open={isModalVisible}
-        onCancel={handleCancel}
-        footer={[
-          <Button key="cancel" onClick={handleCancel}>
+        footer={editMode ? [
+          <Button key="cancel" onClick={() => setIsFieldsModalVisible(false)}>
             取消
           </Button>,
-          <Button key="save" type="primary" onClick={handleSaveConfig}>
-            保存配置
+          <Button key="save" type="primary" onClick={saveFields}>
+            保存
+          </Button>
+        ] : [
+          <Button key="close" type="primary" onClick={() => setIsFieldsModalVisible(false)}>
+            关闭
           </Button>
         ]}
         width={700}
       >
-        <Space direction="vertical" style={{ width: '100%' }}>
-          <Input
-            placeholder="请输入配置名称"
-            value={configName}
-            onChange={(e) => setConfigName(e.target.value)}
-            style={{ marginBottom: 16 }}
-          />
-
-          <Radio.Group
-            value={configType}
-            onChange={(e) => setConfigType(e.target.value)}
-            style={{ marginBottom: 16 }}
-          >
-            <Radio value="MongoDB">导入Java对象文件</Radio>
-            <Radio value="MySQL">导入MyBatis表配置文件</Radio>
-          </Radio.Group>
-
-          {configType === "MongoDB" ? (
-            <div>
-              <Divider orientation="left">Java对象配置</Divider>
-              <Button
-                type="primary"
-                icon={<FileOutlined />}
-                onClick={selectJavaFile}
-                style={{ marginBottom: 16 }}
-              >
-                请选择Java对象文件导入MongoDB配置
-              </Button>
-
-              <Card
-                title="字段列表"
-                size="small"
-                className="fields-card"
-              >
-                {fields.length > 0 ? (
-                  <div style={{ marginTop: 16 }}>
-                    <Title level={5}>已导入字段</Title>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                      {fields.map((field, index) => (
-                        <Tag key={index}>
-                          {typeof field === 'object' ? `${field.name} (${field.type})` : field}
-                        </Tag>
-                      ))}
-                    </div>
-                  </div>
-                ) : (
-                  <Text type="secondary">暂无字段，请选择Java文件</Text>
-                )}
-              </Card>
-            </div>
-          ) : (
-            <div>
-              <Divider orientation="left">MyBatis配置</Divider>
-              <Button
-                type="primary"
-                icon={<FileOutlined />}
-                onClick={selectMybatisFile}
-                style={{ marginBottom: 16 }}
-              >
-                选择MyBatis配置文件导入SQL配置
-              </Button>
-
-              <Card
-                title="字段列表"
-                size="small"
-                className="fields-card"
-              >
-                {fields.length > 0 ? (
-                  <div style={{ marginTop: 16 }}>
-                    <Title level={5}>已导入字段</Title>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                      {fields.map((field, index) => (
-                        <Tag key={index}>
-                          {typeof field === 'object' ? `${field.name} (${field.type})` : field}
-                        </Tag>
-                      ))}
-                    </div>
-                  </div>
-                ) : (
-                  <Text type="secondary">暂无字段，请选择MyBatis文件</Text>
-                )}
-              </Card>
-            </div>
-          )}
-        </Space>
+        {editMode ? (
+          <>
+            <Table
+              dataSource={currentFields.map((field, index) => ({ ...field, key: index }))}
+              pagination={false}
+              bordered
+              size="small"
+              columns={[
+                {
+                  title: '字段名',
+                  dataIndex: 'name',
+                  key: 'name',
+                  render: (text, record, index) => (
+                    <Input 
+                      value={text} 
+                      onChange={(e) => updateField(index, 'name', e.target.value)}
+                    />
+                  )
+                },
+                {
+                  title: '类型',
+                  dataIndex: 'type',
+                  key: 'type',
+                  render: (text, record, index) => (
+                    <Input 
+                      value={text || ''} 
+                      onChange={(e) => updateField(index, 'type', e.target.value)}
+                      placeholder="可选"
+                    />
+                  )
+                },
+                {
+                  title: '操作',
+                  key: 'action',
+                  render: (_, record, index) => (
+                    <Button 
+                      type="link" 
+                      danger 
+                      onClick={() => removeField(index)}
+                    >
+                      删除
+                    </Button>
+                  )
+                }
+              ]}
+            />
+            <Button 
+              type="primary" 
+              icon={<PlusOutlined />} 
+              onClick={addField}
+              style={{ marginBottom: 16 }}
+            >
+              添加字段
+            </Button>
+          </>
+        ) : (
+          <div className="fields-list">
+            {currentFields.map((field, index) => (
+              <Tag key={index} className="field-item">
+                {typeof field === 'string' ? field : `${field.name}${field.type ? ` (${field.type})` : ''}`}
+              </Tag>
+            ))}
+          </div>
+        )}
       </Modal>
     </div>
   );
