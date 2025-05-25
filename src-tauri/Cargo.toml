@@ -30,3 +30,4 @@ regex = "1.5"
 csv = "1.1"
 tauri-plugin-fs = "2"
 tauri-plugin-dialog = "2"
+calamine = "0.19.1"  # 用于解析Excel文件

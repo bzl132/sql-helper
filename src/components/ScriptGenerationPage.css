@@ -1,0 +1,23 @@
+/* 字段映射表格样式 */
+.mapping-card .ant-table-wrapper {
+  overflow-x: auto;
+}
+
+.mapping-card .ant-table-cell {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px; /* 设置单元格最大宽度 */
+}
+
+/* 为长文本添加悬停提示效果 */
+.mapping-card .ant-table-cell-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 确保表格可以水平滚动 */
+.mapping-card .ant-table {
+  width: 100%;
+  table-layout: fixed;
+}

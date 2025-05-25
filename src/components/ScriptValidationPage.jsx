@@ -141,6 +141,7 @@ function ScriptValidationPage() {
 
             // 提取表名
             const tableName = extractTableName(line, scriptType);
+
             result.tableName = tableName;
 
             if (!tableName) {
@@ -178,12 +179,12 @@ function ScriptValidationPage() {
                     result.issues.push(typeIssues);
                 }
 
-                // 验证语法
-                const syntaxIssue = validateSyntax(line, scriptType);
-                if (syntaxIssue) {
-                    result.isValid = false;
-                    result.issues.push(syntaxIssue);
-                }
+                // 移除语法验证部分
+                // const syntaxIssue = validateSyntax(line, scriptType);
+                // if (syntaxIssue) {
+                //     result.isValid = false;
+                //     result.issues.push(syntaxIssue);
+                // }
             }
 
             results.push(result);
@@ -300,7 +301,7 @@ function ScriptValidationPage() {
                     }
                 }
                 // 处理 MongoDB 的 updateOne/updateMany 操作
-                const updateMatch = line.match(/update(?:One|Many)\s*\(\s*{(.*?)}\s*,\s*{\s*\$set\s*:\s*{(.*?)}\s*}/i);
+                const updateMatch = line.match(/update(?:One|Many)\s*\(\s*({.*?})\s*,\s*({.*?})\s*(?:,\s*{.*?})?\)/i);
                 if (updateMatch) {
                     // 检查查询条件
                     const queryClause = updateMatch[1];
@@ -308,26 +309,69 @@ function ScriptValidationPage() {
                     if (queryIssue) {
                         issues.push(queryIssue);
                     }
-
-                    // 检查更新字段
-                    const setClause = updateMatch[2];
-                    const fieldValueRegex = /"([^"]+)"\s*:\s*([^,}]+)/g;
-                    let fieldValueMatch;
-
-                    while ((fieldValueMatch = fieldValueRegex.exec(setClause)) !== null) {
-                        const fieldName = fieldValueMatch[1];
-                        const value = fieldValueMatch[2].trim();
-
-                        const fieldInfo = configFields.find(f =>
-                            typeof f === 'object' ? f.name === fieldName : f === fieldName
-                        );
-
-                        if (fieldInfo) {
-                            const fieldType = typeof fieldInfo === 'object' ? fieldInfo.type : 'String';
-                            const typeIssue = checkValueType(value, fieldType, 'MongoDB');
-                            if (typeIssue) {
-                                issues.push(`字段 ${fieldName} 的值 ${value} ${typeIssue}`);
+                
+                    // 检查更新操作
+                    const updateClause = updateMatch[2];
+                    
+                    // 使用正则表达式提取所有更新操作符和对应的字段
+                    const updateOperators = [];
+                    const operatorRegex = /\$(\w+)\s*:\s*({.*?})/g;
+                    let operatorMatch;
+                    
+                    while ((operatorMatch = operatorRegex.exec(updateClause)) !== null) {
+                        const operator = operatorMatch[1];
+                        const fieldsObj = operatorMatch[2];
+                        updateOperators.push({ operator, fieldsObj });
+                    }
+                    
+                    // 对每个更新操作符进行处理
+                    for (const { operator, fieldsObj } of updateOperators) {
+                        // 使用正则表达式直接提取字段名和值
+                        const fieldValuePairs = [];
+                        const fieldRegex = /"([^"]+)"\s*:\s*([^,}]+|{[^{}]*})/g;
+                        let fieldMatch;
+                        
+                        while ((fieldMatch = fieldRegex.exec(fieldsObj)) !== null) {
+                            const fieldName = fieldMatch[1];
+                            const rawValue = fieldMatch[2].trim();
+                            
+                            fieldValuePairs.push({
+                                fieldName,
+                                rawValue
+                            });
+                        }
+                        
+                        // 遍历提取的字段和值
+                        for (const { fieldName, rawValue } of fieldValuePairs) {
+                            // 查找字段信息
+                            const fieldInfo = configFields.find(f =>
+                                typeof f === 'object' ? f.name === fieldName : f === fieldName
+                            );
+                            
+                            if (!fieldInfo) {
+                                // 字段不存在于配置中
+                                issues.push(`字段 ${fieldName} 在配置中不存在`);
+                                continue;
                             }
+                            
+                            // 获取字段类型
+                            const fieldType = typeof fieldInfo === 'object' ? fieldInfo.type : 'String';
+                            
+                            // 检查值是否是嵌套对象
+                            if (rawValue.startsWith('{') && !rawValue.includes('$')) {
+                                // 这是一个嵌套对象，只验证外层字段名是否存在，不验证其值
+                                continue;
+                            }
+                            
+                            // 对于非对象类型的值，进行类型验证
+                            // 根据不同的操作符可能需要不同的验证逻辑
+                            if (operator === 'set' || operator === 'setOnInsert') {
+                                const typeIssue = checkValueType(rawValue, fieldType, 'MongoDB');
+                                if (typeIssue) {
+                                    issues.push(`字段 ${fieldName} 的值 ${rawValue} ${typeIssue}`);
+                                }
+                            }
+                            // 可以添加其他操作符的验证逻辑
                         }
                     }
                 }
@@ -335,25 +379,46 @@ function ScriptValidationPage() {
                 // 处理 MongoDB 的 insertOne 操作
                 const insertMatch = line.match(/insertOne\s*\(\s*{(.*?)}\s*\)/i);
                 if (insertMatch) {
-                    const insertClause = insertMatch[1];
-                    const fieldValueRegex = /"([^"]+)"\s*:\s*([^,}]+)/g;
-                    let fieldValueMatch;
-
-                    while ((fieldValueMatch = fieldValueRegex.exec(insertClause)) !== null) {
-                        const fieldName = fieldValueMatch[1];
-                        const value = fieldValueMatch[2].trim();
-
-                        const fieldInfo = configFields.find(f =>
-                            typeof f === 'object' ? f.name === fieldName : f === fieldName
-                        );
-
-                        if (fieldInfo) {
+                    try {
+                        const insertClause = insertMatch[1];
+                        // 构造一个有效的 JSON 字符串
+                        const jsonStr = `{${insertClause}}`;
+                        // 尝试解析为 JSON 对象
+                        const jsonObj = JSON.parse(jsonStr.replace(/(['"])?([a-zA-Z0-9_]+)(['"])?:/g, '"$2":'));
+                        
+                        // 遍历顶层字段
+                        for (const fieldName in jsonObj) {
+                            // 查找字段信息
+                            const fieldInfo = configFields.find(f =>
+                                typeof f === 'object' ? f.name === fieldName : f === fieldName
+                            );
+                            
+                            if (!fieldInfo) {
+                                // 字段不存在于配置中
+                                issues.push(`字段 ${fieldName} 在配置中不存在`);
+                                continue;
+                            }
+                            
+                            // 获取字段类型
                             const fieldType = typeof fieldInfo === 'object' ? fieldInfo.type : 'String';
-                            const typeIssue = checkValueType(value, fieldType, 'MongoDB');
+                            const fieldValue = jsonObj[fieldName];
+                            
+                            // 如果值是对象，不验证其内部结构
+                            if (typeof fieldValue === 'object' && fieldValue !== null) {
+                                // 只验证字段名存在性，不验证嵌套对象的内部
+                                continue;
+                            }
+                            
+                            // 对于非对象类型的值，进行类型验证
+                            const valueStr = JSON.stringify(fieldValue);
+                            const typeIssue = checkValueType(valueStr, fieldType, 'MongoDB');
                             if (typeIssue) {
-                                return `字段 ${fieldName} 的值 ${value} ${typeIssue}`;
+                                issues.push(`字段 ${fieldName} 的值 ${valueStr} ${typeIssue}`);
                             }
                         }
+                    } catch (error) {
+                        console.error('解析 MongoDB 插入字段时出错:', error);
+                        issues.push(`解析 MongoDB 插入字段时出错: ${error.message}`);
                     }
                 }
             }
@@ -490,12 +555,12 @@ function ScriptValidationPage() {
         try {
             // 获取对应数据库类型和字段类型的规则
             const typeRules = validationRules[dbType]?.[expectedType] || [];
-            
+
             // 如果没有规则，返回 null
             if (typeRules.length === 0) {
                 return null;
             }
-            
+
             // 检查每条规则
             for (const rule of typeRules) {
                 try {
@@ -507,52 +572,44 @@ function ScriptValidationPage() {
                     console.error(`规则 ${rule.name} 的正则表达式无效:`, error);
                 }
             }
-            
+
             return null;
         } catch (error) {
             console.error('检查值类型时出错:', error);
             return null;
         }
-
     };
 
     // 提取表名
     const extractTableName = (line, type) => {
+        console.log("extractTableName", line, type);
         try {
             if (type === 'MySQL') {
                 // 处理MySQL语句
                 // UPDATE 表名 SET ...
-                const updateMatch = line.match(/UPDATE\s+(\w+)\s+SET/i);
-                if (updateMatch) return updateMatch[1];
+                // 支持带反引号的表名和带点的表名（如db.table）
+                const updateMatch = line.match(/UPDATE\s+(?:`([^`]+)`|([a-zA-Z0-9_$]+(?:\.[a-zA-Z0-9_$]+)?))\s+SET/i);
+                if (updateMatch) return updateMatch[1] || updateMatch[2];
 
                 // INSERT INTO 表名 ...
-                const insertMatch = line.match(/INSERT\s+INTO\s+(\w+)/i);
-                if (insertMatch) return insertMatch[1];
+                const insertMatch = line.match(/INSERT\s+INTO\s+(?:`([^`]+)`|([a-zA-Z0-9_$]+(?:\.[a-zA-Z0-9_$]+)?))/i);
+                if (insertMatch) return insertMatch[1] || insertMatch[2];
 
                 // DELETE FROM 表名 ...
-                const deleteMatch = line.match(/DELETE\s+FROM\s+(\w+)/i);
-                if (deleteMatch) return deleteMatch[1];
+                const deleteMatch = line.match(/DELETE\s+FROM\s+(?:`([^`]+)`|([a-zA-Z0-9_$]+(?:\.[a-zA-Z0-9_$]+)?))/i);
+                if (deleteMatch) return deleteMatch[1] || deleteMatch[2];
 
                 // SELECT ... FROM 表名 ...
-                const selectMatch = line.match(/FROM\s+(\w+)/i);
-                if (selectMatch) return selectMatch[1];
+                const selectMatch = line.match(/FROM\s+(?:`([^`]+)`|([a-zA-Z0-9_$]+(?:\.[a-zA-Z0-9_$]+)?))/i);
+                if (selectMatch) return selectMatch[1] || selectMatch[2];
             } else {
+                console.log("type", type);
                 // 处理MongoDB语句
-                // db.表名.update(...
-                const updateMatch = line.match(/db\.(\w+)\.update/i);
-                if (updateMatch) return updateMatch[1];
-
-                // db.表名.updateOne(...
-                const updateOneMatch = line.match(/db\.(\w+)\.updateOne/i);
-                if (updateOneMatch) return updateOneMatch[1];
-
-                // db.表名.find(...
-                const findMatch = line.match(/db\.(\w+)\.find/i);
-                if (findMatch) return findMatch[1];
-
-                // db.表名.insertOne(...
-                const insertMatch = line.match(/db\.(\w+)\.insertOne/i);
-                if (insertMatch) return insertMatch[1];
+                // 修改正则表达式，使其能够匹配包含下划线的表名
+                // db.表名.update(... 或 db.表名.updateOne(... 等
+                const mongoMatch = line.match(/db\.([a-zA-Z0-9_][a-zA-Z0-9_$]*)\./i);
+                console.log("mongoMatch", mongoMatch);
+                if (mongoMatch) return mongoMatch[1];
             }
         } catch (error) {
             console.error('提取表名时出错:', error);
@@ -627,7 +684,7 @@ function ScriptValidationPage() {
         try {
             const syntaxRules = validationRules[type]?.Syntax || [];
             const issues = [];
-    
+
             // 应用所有语法规则
             for (const rule of syntaxRules) {
                 const pattern = new RegExp(rule.pattern);
@@ -635,7 +692,7 @@ function ScriptValidationPage() {
                     issues.push(rule.message);
                 }
             }
-    
+
             return issues.length > 0 ? issues.join('; ') : null;
         } catch (error) {
             console.error('验证语法时出错:', error);
@@ -672,12 +729,13 @@ function ScriptValidationPage() {
                         >
                             验证脚本
                         </Button>
-                        <Button
+                        {/* 移除规则管理按钮，因为我们只保留两个基本功能 */}
+                        {/* <Button
                             icon={<EditOutlined />}
                             onClick={() => setShowRulesManager(true)}
                         >
                             管理验证规则
-                        </Button>
+                        </Button> */}
                     </Space>
 
                     <div className="editor-container">

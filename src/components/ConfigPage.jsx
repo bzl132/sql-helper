@@ -11,14 +11,15 @@ import {
   Modal,
   Radio,
   Alert,
-  Table  // 添加Table组件导入
+  Table
 } from 'antd';
 import { FileOutlined, DownloadOutlined, UploadOutlined, PlusOutlined } from '@ant-design/icons';
 import { readTextFile, writeTextFile, mkdir, exists, create } from "@tauri-apps/plugin-fs";
 import { dirname, appDataDir } from '@tauri-apps/api/path';
 import { open } from '@tauri-apps/plugin-dialog';
+import AddConfigModal from './AddConfigModal';
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
 
 function ConfigPage() {
   const [fields, setFields] = useState([]);
@@ -27,8 +28,6 @@ function ConfigPage() {
 
   // 新增配置弹窗相关状态
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [configType, setConfigType] = useState("java");
-  const [configName, setConfigName] = useState("");
 
   // 配置文件路径 - 不要使用硬编码的路径
   const [configFilePath, setConfigFilePath] = useState("");
@@ -44,6 +43,9 @@ function ConfigPage() {
 
   // 添加一个状态来跟踪是否已经显示过配置文件不存在的提示
   const [configWarningShown, setConfigWarningShown] = useState(false);
+
+   // 添加一个状态来存储编辑时的新表名
+   const [newTableName, setNewTableName] = useState("");
 
   useEffect(() => {
     // 从 localStorage 加载配置文件路径
@@ -553,9 +555,6 @@ function ConfigPage() {
   // 显示新增配置弹窗
   const showAddConfigModal = () => {
     setIsModalVisible(true);
-    setConfigName("");
-    setConfigType("MongoDB");
-    setFields([]);
   };
 
   // 关闭新增配置弹窗
@@ -563,37 +562,14 @@ function ConfigPage() {
     setIsModalVisible(false);
   };
 
-  // 保存新增配置
-  const handleSaveConfig = () => {
-    if (!configName) {
-      message.error('请输入配置名称');
-      return;
-    }
-
-    // 检查是否存在同名配置
-    if (config[configName]) {
-      Modal.confirm({
-        title: '配置已存在',
-        content: `配置 "${configName}" 已存在，是否覆盖？`,
-        okText: '覆盖',
-        cancelText: '取消',
-        onOk() {
-          saveNewConfig();
-        }
-      });
-    } else {
-      saveNewConfig();
-    }
-  };
-
   // 保存新配置到本地存储
-  const saveNewConfig = async () => {
+  const saveNewConfig = (configName, configType, configFields) => {
     // 更新内存中的配置
     const newConfig = {
       ...config,
       [configName]: {
         type: configType,
-        fields: fields
+        fields: configFields
         // 移除 mysqlFields 属性
       }
     };
@@ -631,6 +607,7 @@ function ConfigPage() {
       
       setCurrentFields(fields);
       setEditingTable(tableName);
+      setNewTableName(tableName); // 初始化新表名为当前表名
       setIsFieldsModalVisible(true);
       setEditMode(true); // 设置为编辑模式
     } else {
@@ -678,6 +655,27 @@ function ConfigPage() {
     setCurrentFields(newFields);
   };
 
+  // 添加一个函数来处理配置编辑后的更新
+  const updateConfigInLocalStorage = (tableName, updatedFields) => {
+    // 获取当前配置
+    const currentConfig = { ...config };
+    
+    // 更新指定表的字段
+    if (currentConfig[tableName]) {
+      currentConfig[tableName].fields = updatedFields;
+      
+      // 更新状态
+      setConfig(currentConfig);
+      
+      // 保存到 localStorage
+      localStorage.setItem('dbConfig', JSON.stringify(currentConfig));
+      
+      message.success(`配置 ${tableName} 已更新`);
+    } else {
+      message.error(`找不到配置 ${tableName}`);
+    }
+  };
+
   // 保存编辑后的字段
   const saveFields = () => {
     // 验证字段名不为空
@@ -687,12 +685,64 @@ function ConfigPage() {
       return;
     }
 
-    // 更新配置
+    // 验证新表名不为空
+    if (!newTableName.trim()) {
+      message.error('表名不能为空');
+      return;
+    }
+
+    // 创建新的配置对象
     const newConfig = { ...config };
-    newConfig[editingTable] = {
-      ...newConfig[editingTable],
-      fields: currentFields
-    };
+    
+    // 如果表名发生了变化
+    if (newTableName !== editingTable) {
+      // 检查新表名是否已存在
+      if (newConfig[newTableName] && newTableName !== editingTable) {
+        Modal.confirm({
+          title: '表名已存在',
+          content: `表名 "${newTableName}" 已存在，是否覆盖？`,
+          okText: '覆盖',
+          cancelText: '取消',
+          onOk() {
+            // 删除旧表名的配置
+            delete newConfig[editingTable];
+            
+            // 添加新表名的配置
+            newConfig[newTableName] = {
+              type: config[editingTable].type,
+              fields: currentFields
+            };
+            
+            // 更新状态和本地存储
+            setConfig(newConfig);
+            localStorage.setItem('dbConfig', JSON.stringify(newConfig));
+            
+            // 关闭弹窗
+            setIsFieldsModalVisible(false);
+            message.success(`配置已保存为 "${newTableName}"`);
+            
+            // 调用字段编辑完成的处理函数
+            handleFieldsEditComplete(newTableName, currentFields);
+          }
+        });
+        return;
+      }
+      
+      // 删除旧表名的配置
+      delete newConfig[editingTable];
+      
+      // 添加新表名的配置
+      newConfig[newTableName] = {
+        type: config[editingTable].type,
+        fields: currentFields
+      };
+    } else {
+      // 表名没有变化，只更新字段
+      newConfig[editingTable] = {
+        ...newConfig[editingTable],
+        fields: currentFields
+      };
+    }
 
     // 更新状态和本地存储
     setConfig(newConfig);
@@ -700,7 +750,16 @@ function ConfigPage() {
 
     // 关闭弹窗
     setIsFieldsModalVisible(false);
-    message.success('字段配置已保存');
+    message.success('配置已保存');
+    
+    // 调用字段编辑完成的处理函数
+    handleFieldsEditComplete(newTableName !== editingTable ? newTableName : editingTable, currentFields);
+  };
+  
+  // 在表格编辑完成后调用此函数
+  const handleFieldsEditComplete = (tableName, editedFields) => {
+    // 更新配置
+    updateConfigInLocalStorage(tableName, editedFields);
   };
 
 
@@ -892,7 +951,7 @@ function ConfigPage() {
       
       {/* 字段属性弹窗 */}
       <Modal
-        title={editMode ? `编辑 "${editingTable}" 的字段` : "字段属性"}
+        title={editMode ? "编辑配置" : "字段属性"}
         open={isFieldsModalVisible}
         onCancel={() => setIsFieldsModalVisible(false)}
         footer={editMode ? [
@@ -911,6 +970,16 @@ function ConfigPage() {
       >
         {editMode ? (
           <>
+            {/* 添加表名编辑输入框 */}
+            <div style={{ marginBottom: 16 }}>
+              <Input
+                addonBefore="表名"
+                value={newTableName}
+                onChange={(e) => setNewTableName(e.target.value)}
+                placeholder="请输入表名"
+              />
+            </div>
+            
             <Table
               dataSource={currentFields.map((field, index) => ({ ...field, key: index }))}
               pagination={false}
@@ -955,11 +1024,12 @@ function ConfigPage() {
                 }
               ]}
             />
+            
             <Button 
               type="primary" 
               icon={<PlusOutlined />} 
               onClick={addField}
-              style={{ marginBottom: 16 }}
+              style={{ marginTop: 16 }}
             >
               添加字段
             </Button>
@@ -974,6 +1044,15 @@ function ConfigPage() {
           </div>
         )}
       </Modal>
+
+      
+      {/* 使用新的 AddConfigModal 组件 */}
+      <AddConfigModal
+        isVisible={isModalVisible}
+        onCancel={handleCancel}
+        onSave={saveNewConfig}
+        config={config}
+      />
     </div>
   );
 }

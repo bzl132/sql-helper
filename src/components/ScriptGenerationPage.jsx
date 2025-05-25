@@ -13,6 +13,11 @@ import {
   Input
 } from 'antd';
 import { FileOutlined, CodeOutlined, DownloadOutlined } from '@ant-design/icons';
+import './ScriptGenerationPage.css';
+
+
+// 添加xlsx库用于解析Excel文件
+import * as XLSX from 'xlsx';
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -35,6 +40,7 @@ function ScriptGenerationPage() {
   const [config, setConfig] = useState({});
   const [availableTables, setAvailableTables] = useState([]);
   const [hasHeaders, setHasHeaders] = useState(true);
+  const [fileType, setFileType] = useState("csv"); // 添加文件类型状态
 
 
   useEffect(() => {
@@ -192,11 +198,46 @@ function ScriptGenerationPage() {
   };
 
   const handleFieldMapping = (csvField, dbField, csvIndex) => {
+    // 如果选择了空值（"-- 选择字段 --"），则从映射中删除该字段
+    if (!dbField) {
+      const newFieldMappings = { ...fieldMappings };
+      delete newFieldMappings[csvField];
+      
+      // 如果该字段是条件字段，也需要清除条件字段
+      if (fieldMappings[csvField]?.dbField === conditionField) {
+        setConditionField("");
+      }
+      
+      // 如果该字段在更新字段列表中，也需要从更新字段列表中移除
+      if (updateFields.includes(fieldMappings[csvField]?.dbField)) {
+        setUpdateFields(updateFields.filter(f => f !== fieldMappings[csvField]?.dbField));
+      }
+      
+      setFieldMappings(newFieldMappings);
+      return;
+    }
+    
+    // 获取选中字段的类型信息
+    let fieldType = "";
+    if (dbField && config[selectedTable]?.fields) {
+      const fieldInfo = config[selectedTable].fields.find(field => {
+        if (typeof field === 'object') {
+          return field.name === dbField;
+        }
+        return field === dbField;
+      });
+      
+      if (fieldInfo && typeof fieldInfo === 'object') {
+        fieldType = fieldInfo.type || "";
+      }
+    }
+    
     setFieldMappings({
       ...fieldMappings,
       [csvField]: {
         dbField: dbField,
-        csvIndex: csvIndex
+        csvIndex: csvIndex,
+        fieldType: fieldType // 添加字段类型
       }
     });
   };
@@ -209,75 +250,6 @@ function ScriptGenerationPage() {
     }
   };
 
-  const generateScript = async () => {
-    // 生成数据库脚本
-    try {
-      if (dbType === "MongoDB") {
-        if (operationType === "UPDATE") {
-          const result = await invoke("generate_mongodb_script", {
-            csvData,
-            fieldMappings,
-            conditionField,
-            updateFields,
-            tableName: selectedTable
-          });
-          setScript(result);
-          setEditableScript(result);
-        } else if (operationType === "INSERT") {
-          const result = await invoke("generate_mongodb_insert_script", {
-            csvData,
-            fieldMappings,
-            tableName: selectedTable
-          });
-          setScript(result);
-          setEditableScript(result);
-        } else if (operationType === "DELETE") {
-          const result = await invoke("generate_mongodb_delete_script", {
-            csvData,
-            fieldMappings,
-            conditionField,
-            tableName: selectedTable
-          });
-          setScript(result);
-          setEditableScript(result);
-        }
-      } else { // MySQL
-        if (operationType === "UPDATE") {
-          const result = await invoke("generate_mysql_script", {
-            csvData,
-            fieldMappings,
-            conditionField,
-            updateFields,
-            tableName: selectedTable
-          });
-          setScript(result);
-          setEditableScript(result);
-        } else if (operationType === "INSERT") {
-          const result = await invoke("generate_mysql_insert_script", {
-            csvData,
-            fieldMappings,
-            tableName: selectedTable
-          });
-          setScript(result);
-          setEditableScript(result);
-        } else if (operationType === "DELETE") {
-          const result = await invoke("generate_mysql_delete_script", {
-            csvData,
-            fieldMappings,
-            conditionField,
-            tableName: selectedTable
-          });
-          setScript(result);
-          setEditableScript(result);
-        }
-      }
-      message.success('脚本生成成功');
-    } catch (error) {
-      console.error('脚本生成失败:', error);
-      message.error('脚本生成失败: ' + error);
-    }
-  };
-
   // 处理脚本编辑
   const handleScriptChange = (e) => {
     setEditableScript(e.target.value);
@@ -286,7 +258,6 @@ function ScriptGenerationPage() {
   // 导出脚本到文件
   const exportScriptToFile = async () => {
     try {
-      console.log('开始导出脚本...');
 
       // 检查脚本是否为空
       if (!editableScript || editableScript.trim() === '') {
@@ -310,7 +281,6 @@ function ScriptGenerationPage() {
       if (filePath) {
         // 使用Tauri的文件系统API写入文件
         await writeTextFile(filePath, editableScript);
-        console.log('文件已保存到:', filePath);
         message.success('脚本已导出');
       }
     } catch (error) {
@@ -325,12 +295,27 @@ function ScriptGenerationPage() {
       title: 'CSV 字段',
       dataIndex: 'csvField',
       key: 'csvField',
-      width: '25%',
+      width: '150px',  // 使用固定像素宽度
+      ellipsis: true, // 添加省略号
       render: (text, record) => (
         <div>
-          <div><strong>{text}</strong></div>
+          <div style={{
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            maxWidth: '100%'
+          }} title={text}>  {/* 添加title属性显示完整内容 */}
+            <strong>{text}</strong>
+          </div>
           {csvData.length > 0 && (
-            <div style={{ color: '#888', fontSize: '12px', marginTop: '4px' }}>
+            <div style={{
+              color: '#888',
+              fontSize: '12px',
+              marginTop: '4px',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis'
+            }} title={csvData[0][record.key] || '无数据'}>  {/* 为示例值也添加title属性 */}
               示例: {csvData[0][record.key] || '无数据'}
             </div>
           )}
@@ -341,7 +326,7 @@ function ScriptGenerationPage() {
       title: '数据库字段',
       dataIndex: 'dbField',
       key: 'dbField',
-      width: '35%',
+      width: '30%',  // 调整宽度
       render: (_, record, index) => (
         <Select
           style={{ width: '100%' }}
@@ -362,7 +347,7 @@ function ScriptGenerationPage() {
       title: '条件字段',
       dataIndex: 'condition',
       key: 'condition',
-      width: '20%',
+      width: '15%',  // 减小宽度
       render: (_, record) => (
         <Radio
           checked={fieldMappings[record.csvField]?.dbField === conditionField}
@@ -375,7 +360,7 @@ function ScriptGenerationPage() {
       title: '更新字段',
       dataIndex: 'update',
       key: 'update',
-      width: '20%',
+      width: '15%',  // 减小宽度
       render: (_, record) => (
         <Checkbox
           checked={updateFields.includes(fieldMappings[record.csvField]?.dbField)}
@@ -433,6 +418,7 @@ function ScriptGenerationPage() {
     dataIndex: index.toString(),
     key: index.toString(),
     ellipsis: true,
+    width: 150,  // 设置宽度
   }));
 
   // 将CSV数据转换为表格数据格式
@@ -443,6 +429,312 @@ function ScriptGenerationPage() {
     });
     return rowData;
   });
+
+
+  // 处理导入的数据 - 只导入前10行用于预览
+  const processImportedData = (parsedData) => {
+    if (parsedData.length > 0) {
+      let headers, csvData;
+
+      if (hasHeaders) {
+        // 如果有表头，第一行作为表头
+        headers = parsedData[0];
+        // 只取前10行数据用于预览
+        csvData = parsedData.slice(1, 11).filter(row => row.length > 1);
+      } else {
+        // 如果没有表头，自动生成表头（列1，列2，列3...）
+        const columnCount = parsedData[0].length;
+        headers = Array.from({ length: columnCount }, (_, i) => `列${i + 1}`);
+        // 只取前10行数据用于预览
+        csvData = parsedData.slice(0, 10).filter(row => row.length > 1);
+      }
+
+      // 设置状态
+      setHeaders(headers);
+      setCsvData(csvData);
+
+      console.log('Headers:', headers);
+      console.log('CSV Data (Preview):', csvData);
+
+      // 保存到localStorage - 只保存headers和文件路径
+      localStorage.setItem('csvHeaders', JSON.stringify(headers));
+
+      // 保存原始文件信息，以便生成脚本时重新读取
+      localStorage.setItem('lastImportedFileType', fileType);
+
+      // 不再保存完整数据到localStorage
+      // localStorage.setItem('csvData', JSON.stringify(csvData));
+
+      message.success(`${fileType.toUpperCase()}文件解析成功（预览模式：仅显示前10行）`);
+    }
+  };
+
+  // 修改generateScript函数，在生成脚本前重新导入完整数据
+  const generateScript = async () => {
+    try {
+      message.loading({ content: '正在处理数据并生成脚本...', key: 'scriptGen' });
+      
+      // 检查是否需要重新导入完整数据
+      const fullDataNeeded = true; // 始终重新导入完整数据
+
+      if (fullDataNeeded) {
+        // 获取上次导入的文件信息
+        const lastFileInput = document.getElementById('hiddenFileInput');
+
+        if (lastFileInput && lastFileInput.files && lastFileInput.files[0]) {
+          const file = lastFileInput.files[0];
+          const fileExtension = file.name.split('.').pop().toLowerCase();
+
+          // 读取完整文件数据
+          let fullData = [];
+
+          if (fileExtension === 'csv') {
+            // 处理CSV文件
+            const content = await readFileAsText(file);
+            const lines = content.split('\n');
+            fullData = lines.map(line => line.split(',').map(item => item.trim()));
+          } else if (fileExtension === 'xlsx' || fileExtension === 'xls') {
+            // 处理Excel文件
+            const data = await readFileAsArrayBuffer(file);
+            const workbook = XLSX.read(new Uint8Array(data), {
+              type: 'array',
+              cellFormula: false,
+              cellHTML: false,
+              cellText: false
+            });
+
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+
+            fullData = XLSX.utils.sheet_to_json(worksheet, {
+              header: 1,
+              raw: true,
+              defval: ''
+            });
+          }
+
+          // 提取完整数据
+          let fullCsvData;
+          if (hasHeaders) {
+            fullCsvData = fullData.slice(1).filter(row => row.length > 1);
+          } else {
+            fullCsvData = fullData.filter(row => row.length > 1);
+          }
+
+          // 生成数据库脚本
+          await generateScriptWithData(fullCsvData);
+        } else {
+          message.destroy('scriptGen');
+          message.warning('找不到导入的文件，请重新导入数据文件');
+        }
+      } else {
+        // 使用当前数据生成脚本
+        await generateScriptWithData(csvData);
+      }
+    } catch (error) {
+      message.destroy('scriptGen');
+      console.error('脚本生成失败:', error);
+      message.error('脚本生成失败: ' + error);
+    }
+  };
+
+  // 辅助函数：读取文件为文本
+  const readFileAsText = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (event) => resolve(event.target.result);
+      reader.onerror = (error) => reject(error);
+      reader.readAsText(file);
+    });
+  };
+
+  // 辅助函数：读取文件为ArrayBuffer
+  const readFileAsArrayBuffer = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (event) => resolve(event.target.result);
+      reader.onerror = (error) => reject(error);
+      reader.readAsArrayBuffer(file);
+    });
+  };
+
+  // 使用数据生成脚本的核心函数
+  const generateScriptWithData = async (data) => {
+    try {
+      if (dbType === "MongoDB") {
+        if (operationType === "UPDATE") {
+          const result = await invoke("generate_mongodb_script", {
+            csvData: data,
+            fieldMappings, // 现在包含了字段类型信息
+            conditionField,
+            updateFields,
+            tableName: selectedTable
+          });
+          setScript(result);
+          setEditableScript(result);
+        } else if (operationType === "INSERT") {
+          const result = await invoke("generate_mongodb_insert_script", {
+            csvData: data,
+            fieldMappings,
+            tableName: selectedTable
+          });
+          setScript(result);
+          setEditableScript(result);
+        } else if (operationType === "DELETE") {
+          const result = await invoke("generate_mongodb_delete_script", {
+            csvData: data,
+            fieldMappings,
+            conditionField,
+            tableName: selectedTable
+          });
+          setScript(result);
+          setEditableScript(result);
+        }
+      } else { // MySQL
+        if (operationType === "UPDATE") {
+          const result = await invoke("generate_mysql_script", {
+            csvData: data,
+            fieldMappings,
+            conditionField,
+            updateFields,
+            tableName: selectedTable
+          });
+          setScript(result);
+          setEditableScript(result);
+        } else if (operationType === "INSERT") {
+          const result = await invoke("generate_mysql_insert_script", {
+            csvData: data,
+            fieldMappings,
+            tableName: selectedTable
+          });
+          setScript(result);
+          setEditableScript(result);
+        } else if (operationType === "DELETE") {
+          const result = await invoke("generate_mysql_delete_script", {
+            csvData: data,
+            fieldMappings,
+            conditionField,
+            tableName: selectedTable
+          });
+          setScript(result);
+          setEditableScript(result);
+        }
+      }
+      message.destroy('scriptGen');
+      message.success('脚本生成成功');
+    } catch (error) {
+      message.destroy('scriptGen');
+      console.error('脚本生成失败:', error);
+      message.error('脚本生成失败: ' + error);
+    }
+  };
+
+  // 修改文件选择函数，保存文件引用
+
+  // 修改文件选择函数，保存文件引用
+  function selectDataFile() {
+    try {
+      // 移除旧的文件输入元素（如果存在）
+      const oldInput = document.getElementById('hiddenFileInput');
+      if (oldInput) {
+        document.body.removeChild(oldInput);
+      }
+
+      // 创建一个隐藏的文件输入元素
+      const fileInput = document.createElement('input');
+      fileInput.type = 'file';
+      fileInput.accept = '.csv,.xlsx,.xls'; // 同时接受CSV和Excel文件
+      fileInput.id = 'hiddenFileInput';
+      fileInput.style.display = 'none';
+      document.body.appendChild(fileInput);
+
+      fileInput.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          // 根据文件扩展名判断文件类型
+          const fileExtension = file.name.split('.').pop().toLowerCase();
+          setFileType(fileExtension);
+
+          if (fileExtension === 'csv') {
+            // 处理CSV文件
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+              const content = event.target.result;
+
+              // 解析 CSV 内容
+              const lines = content.split('\n');
+              const parsedData = lines.map(line => line.split(',').map(item => item.trim()));
+
+              processImportedData(parsedData);
+            };
+            reader.readAsText(file);
+          } else if (fileExtension === 'xlsx' || fileExtension === 'xls') {
+            // 处理Excel文件 - 只读取前几行用于预览
+            try {
+              message.loading({ content: '正在解析Excel文件...', key: 'excelLoading' });
+
+              const reader = new FileReader();
+              reader.onload = async (event) => {
+                try {
+                  const data = new Uint8Array(event.target.result);
+
+                  // 使用更高效的方式读取Excel文件
+                  const workbook = XLSX.read(data, {
+                    type: 'array',
+                    cellFormula: false,  // 禁用公式解析
+                    cellHTML: false,     // 禁用HTML解析
+                    cellText: false      // 禁用富文本解析
+                  });
+
+                  // 获取第一个工作表
+                  const firstSheetName = workbook.SheetNames[0];
+                  const worksheet = workbook.Sheets[firstSheetName];
+
+                  // 使用更高效的方式转换数据 - 只读取前几行
+                  const sheetRange = XLSX.utils.decode_range(worksheet['!ref']);
+                  // 限制读取范围为前11行（1行表头+10行数据）或更少
+                  const limitedRange = {
+                    s: { r: sheetRange.s.r, c: sheetRange.s.c },
+                    e: {
+                      r: Math.min(sheetRange.s.r + 10, sheetRange.e.r),
+                      c: sheetRange.e.c
+                    }
+                  };
+
+                  worksheet['!ref'] = XLSX.utils.encode_range(limitedRange);
+
+                  const parsedData = XLSX.utils.sheet_to_json(worksheet, {
+                    header: 1,
+                    raw: true,
+                    defval: ''
+                  });
+
+                  message.destroy('excelLoading');
+                  processImportedData(parsedData);
+                } catch (error) {
+                  message.destroy('excelLoading');
+                  console.error('解析Excel文件时出错:', error);
+                  message.error(`解析Excel文件时出错: ${error.message}`);
+                }
+              };
+              reader.readAsArrayBuffer(file);
+            } catch (error) {
+              message.destroy('excelLoading');
+              console.error('解析Excel文件时出错:', error);
+              message.error(`解析Excel文件时出错: ${error.message}`);
+            }
+          } else {
+            message.error('不支持的文件格式，请选择CSV或Excel文件');
+          }
+        }
+      };
+
+      fileInput.click();
+    } catch (error) {
+      console.error('选择或解析文件时出错:', error);
+      message.error(`选择或解析文件时出错: ${error.message}`);
+    }
+  };
 
   return (
     <div className="script-generation-page">
@@ -492,26 +784,28 @@ function ScriptGenerationPage() {
             </div>
 
             <div style={{ marginBottom: '10px' }}>
-              <span style={{ display: 'inline-block', width: '100px' }}>CSV文件：</span>
+              <span style={{ display: 'inline-block', width: '100px' }}>数据文件：</span>
               <Button
                 type="primary"
                 icon={<FileOutlined />}
-                onClick={selectCsvFile}
+                onClick={selectDataFile}
               >
-                选择 CSV 文件
+                选择数据文件
               </Button>
               <Checkbox
                 checked={hasHeaders}
                 onChange={(e) => setHasHeaders(e.target.checked)}
                 style={{ marginLeft: '10px' }}
               >
-                CSV文件包含表头
+                文件包含表头
               </Checkbox>
+              <span style={{ marginLeft: '10px', color: '#888' }}>
+                支持格式: CSV, XLSX, XLS
+              </span>
             </div>
           </Space>
 
           {/* 显示导入的CSV数据 */}
-          {/* ... existing code ... */}
 
           {selectedTable && headers.length > 0 && (
             <Card
@@ -523,6 +817,7 @@ function ScriptGenerationPage() {
                 columns={columns}
                 dataSource={tableData}
                 pagination={false}
+                scroll={{ x: 'max-content' }}  // 添加水平滚动
                 size="small"
                 bordered
               />
